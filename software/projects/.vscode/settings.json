@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+      "board.h": "c",
+      "va416xx.h": "c",
+      "va416xx_debug.h": "c",
+      "va416xx_hal_dma.h": "c",
+      "va416xx_hal.h": "c",
+      "uart.h": "c",
+      "stdio_remap.h": "c",
+      "va416xx_hal_clkgen.h": "c",
+      "system_va416xx.h": "c",
+      "va416xx_hal_spi.h": "c",
+      "va416xx_hal_adc.h": "c",
+      "cmd_interface.h": "c",
+      "va416xx_evk.h": "c",
+      "freertosconfig.h": "c",
+      "reent.h": "c",
+      "hal_config.h": "c",
+      "va416xx_hal_ioconfig.h": "c",
+      "spi_fram.h": "c",
+      "va416xx_hal_uart.h": "c",
+      "test_spi_interrupt_hal.h": "c",
+      "va416xx_hal_irqrouter.h": "c",
+      "dac_sine.h": "c",
+      "peb1_va416xx_evk.h": "c"
+    },
+    "cortex-debug.registerUseNaturalFormat": false
+}

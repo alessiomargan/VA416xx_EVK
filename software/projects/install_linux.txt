@@ -1,0 +1,48 @@
+VS Code / GCC ARM toolchain Ubuntu install instructions (Tested on Ubuntu 22.04)
+Date: 26 September 2023
+VORAGO Technologies
+
+
+Install VS code .deb from Microsoft: code_1.82.2-1694671812_amd64.deb (or latest version)
+Install Segger .deb from SEGGER: JLink_Linux_V92f_x86_64.deb (or latest version)
+
+Install gcc-arm-none-eabi 10.3-2021.10:
+sudo apt-get update
+sudo apt-get install gcc-arm-none-eabi
+
+Install GNU Make 4.3:
+sudo apt-get install make
+
+Install cmake 3.22.1:
+sudo apt-get install cmake
+
+Fix GDB dependencies:
+cd /usr/lib/x86_64-linux-gnu
+sudo ln -s libncurses.so.6.3 libncurses.so.5
+sudo ln -s libtinfo.so.6.3 libtinfo.so.5
+
+Add GDB link if it is missing:
+cd /usr/bin
+sudo ln -s [arm-none-eabi path]/bin/arm-none-eabi-gdb arm-none-eabi-gdb
+
+Check that the following commands work:
+make --version
+cmake --version
+arm-none-eabi-gcc --version
+arm-none-eabi-g++ --version
+arm-none-eabi-gdb --version
+arm-none-eabi-size --version
+
+
+Install VS Code extensions:
+C/C++ - Microsoft
+Arm Assembly - dan-c-underwood
+CMake - twxs
+Cortex-Debug - marus25
+LinkerScript - Zixuan Wang
+
+Open VS Code workspace folder
+
+In VS Code terminal:
+make init
+make blinky

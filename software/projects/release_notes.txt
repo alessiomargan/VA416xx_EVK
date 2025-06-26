@@ -1,0 +1,422 @@
+VA416xx Board Support Package V2.05
+Changes since previous version (V2.04)
+Date: March 12, 2024
+
+Summary: HAL clockgen update, HAL spi driver interrupt and DMA support, document updates
+
+[docs]
+VA416x0 Datasheet     Updated to version 2.7
+VA41628 Datasheet     Updated to version 2.4
+VA41629 Datasheet     Updated to version 2.0
+VA416xx Errata        Updated to version 1.7
+VA416xx PG            Updated to version 1.2
+PEB1 User's Manual    Updated to version 4.1
+
+[workspace_root]
+/MAKEFILE             Changed global optimization setting to Os
+/va416xx.ld           Updated JLINK RTT section in linker file (absolute address)
+/scripts/va416xx.svd  Fixed WDOGLOCK register offset to match header file
+
+[/common/BSP/evk]
+/hdr/i2c_adxl343.h    Added ADXL343_GetTemperature() function to match accelerometer generic interface
+/hdr/va416xx_evk.h    Renamed to peb1_va416xx_evk.h 
+/hdr/va41628_evk.h    Renamed to peb2_va41628_evk.h 
+/src/i2c_adxl343.c    Added ADXL343_GetTemperature(), returns hal_status_notImplemented
+/src/evk_board.c      Renamed to peb1_va416xx_evk.c 
+
+[/common/drivers]
+/hdr/va416xx_hal_adc.h    Updated driver version to 2.05, added un_adc_ctrl_t union, added HAL_ADC_SetCtrl()
+/hdr/va416xx_hal_clkgen.h Updated driver version to 2.05, hal_clkgen_init_t PLL out frequency changed from MHz to Hz (increased resolution), updated config macros
+/hdr/va416xx_hal_dma.h    Updated driver version to 2.05, added HAL_DMA_RegDoneCallback()
+/hdr/va416xx_hal_spi.h    Updated driver version to 2.05, hal_spi_init_t->slaveSelect renamed to chipSelect, hal_spi_xfer_t->ss removed, hal_spi_handle_t: added dma channels and SPI bank
+/hdr/va416xx_hal_spi.h    Added HAL_Spi_SetClkDiv(), HAL_Spi_SetChipSelect(), HAL_Spi_ConfigDMA(), HAL_Spi_TransmitInt(), HAL_Spi_ReceiveInt(), HAL_Spi_TransmitReceiveInt(), HAL_Spi_TransmitDMA(), HAL_Spi_ReceiveDMA(), HAL_Spi_TransmitReceiveDMA()
+/hdr/va416xx_hal_uart.h   Updated driver version to 2.05, added HAL_Uart_Flush()
+/src/va416xx_debug.c      Cleanup, removed commented out variable definition, moved static variable defs from 'local functions' section to 'local varaibles', version to 2.05
+/src/va416xx_hal_adc.c    Removed ADC_NOP_CNT, fixed clock divide settings in HAL_ADC_Init, HAL_ADC_ManualTrigger() uses control register union to avoid warning, added HAL_ADC_SetCtrl() implementation
+/src/va416xx_hal_clkgen.c Bugfix: fixed issue in HAL_Clkgen_XtalN(), HAL_Clkgen_XtalOsc() where fail condition (no external clk present) wasn't properly reported in returned status
+/src/va416xx_hal_clkgen.c Changed timing of LoCLK interrupt enable in HAL_Clkgen_PLL. HAL_Clkgen_Init(): Initial force to HBO clock now clears LOST_DET_EN bit (reset state), now sets SystemCoreClk to default (HBO), 
+/src/va416xx_hal_clkgen.c HAL_Clkgen_Init(): changes for PLL config now in Hz vs MHz, improved SYSCLK lost enabling and fail condition (no external clock present) detection.
+/src/va416xx_hal_dma.c    Added static function and handle pointers for callback mechanism. HAL_DMA_Init(): Added enabling and clearing of IRQRouter to DMA init. Added HAL_DMA_RegDoneCallback() (callback registration function). Added ISRs
+/src/va416xx_hal_spi.c    Removed Spi_GetBankNum(), added Spi_Callback(), HAL_Spi_Rx_Dma_Callback(), implemented Spi_LoadTxFifo(), added HAL_Spi[0-3]_Cmplt_Callback() weak functions, improved HAL_Spi_Init(), HAL_Spi_DeInit() now clears DMA callbacks, 
+/src/va416xx_hal_spi.c    Added HAL_Spi_ConfigDMA(), HAL_Spi_TransmitInt(), HAL_Spi_ReceiveInt(), HAL_Spi_TransmitReceiveInt(), HAL_Spi_TransmitDMA(), HAL_Spi_ReceiveDMA(), HAL_Spi_TransmitReceiveDMA() implementations
+/src/va416xx_hal_uart.c   Made some settings in #defines overrideable in hal_config.h with #ifndef clauses, cleaned up GetBankNum(), DisableRxIrq(), HAL_Uart_Init(), HAL_Uart_TxByte(), HAL_Uart_TxStr(), HAL_Uart_TxBreak(), HAL_Uart_RxByte(), 
+/src/va416xx_hal_uart.c   Cleaned up HAL_Uart_GetRxLen(), HAL_Uart_RxHndlr(), UART0_RX_IRQHandler(), UART1_RX_IRQHandler(), and UART2_RX_IRQHandler(). Added implementation of HAL_Uart_Flush(). 
+
+[/common/utils]
+/hdr/dac_sine.h       Changed version to V2.05
+/src/dac_sine.c       Removed DMA_Done ISRs from this file (now defined in va416xx_hal_dma.c), now uses DMA callback mechanism instead
+
+[/apps/blinky]
+/hdr/board.h:         Changed version to V2.05, __MCU_HW_VER_REVB flag moved to hal_config.h 
+/hdr/hal_config.h     Changed HAL SPI ISR enable flags, added DMA ISR enable flags, added __MCU_HW_VER_REVB flag
+/src/main.c           Updated version and date, LoCLK_IRQHandler() now calls HAL_Clkgen_Rearm()
+/src/uart.c           Bugfix in UARTxGetBuffer() functions (logic typo), added null checks to UARTxTxStr() functions
+
+[/apps/bootloader]
+/hdr/board.h:			    Changed version to V2.05, __MCU_HW_VER_REVB flag moved to hal_config.h 
+/hdr/hal_config.h     Changed HAL SPI ISR enable flags, added __MCU_HW_VER_REVB flag
+/src/main.c           Updated version and date, added (void) to some HAL calls where returned status not used
+
+[/apps/demo]
+/hdr/board.h:			    Changed version to V2.05, __MCU_HW_VER_REVB flag moved to hal_config.h, added device selection (VA41629, '41629, or '416x0), BSP/board selection based on device type
+/hdr/hal_config.h     Changed HAL SPI ISR enable flags, added DMA ISR enable flags, added __MCU_HW_VER_REVB flag
+/hdr/cmd_interface.h  Updated version, added SPI interrupt demo command ($spiint)
+/src/cmd_interface.c  Added $spiint command, $clkpll command now accepts frequency in hz, split buildRxCmd() into checkRxBuffers() and processRxByte(), device selection macros around some commands, new SPI DMA example
+/src/main.c           Updated version and date, added master peripheral reset to Initialize(), changed clkgen config to use new 'pll_out_hz' member, welcome message now uses DEVICE_NAME, LoCLK_IRQHandler() now calls HAL_Clkgen_Rearm()
+
+[/apps/freertos_blinky]
+/hdr/board.h:			    Changed version to V2.05, __MCU_HW_VER_REVB flag moved to hal_config.h, added device selection (VA41629, '41629, or '416x0), BSP/board selection based on device type
+/hdr/hal_config.h     Changed HAL SPI ISR enable flags, added __MCU_HW_VER_REVB flag
+/src/main.c           Updated version and date, LoCLK_IRQHandler() now calls HAL_Clkgen_Rearm()
+/src/uart.c           Bugfix in UARTxGetBuffer() functions, added null checks to UARTxTxStr() functions
+
+VA416xx Board Support Package V2.04
+Changes since previous version (V2.03)
+Date: July 14, 2023
+
+Summary: new SPI driver, clockgen cleanup, va416xx.h register file update (WDOG fix), demo project command processor fixes, loader fix
+
+[docs]
+VA416x0 Datasheet   Updated to version 2.3
+VA41628 Datasheet   Updated to version 2.3
+VA416xx Errata      Updated to version 1.5
+
+[/common/drivers]
+/src/va416xx_hal.c,
+/hdr/va416xx_hal.h:		    hal_systick_init() now accepts priority argument
+/src/va416xx_hal_dma.c,
+/hdr/va416xx_hal_dma.h:   HAL_DMA_PeriphToSRAM16() r_power was incorrect value - changed from 16 to each
+/src/va416xx_hal_spi.c,
+/hdr/va416xx_hal_spi.h		new SPI driver that improves performance by removing the txn queue
+				blocking transfers only in this release, interrupt and DMA based transfers coming soon (V2.05)
+
+[/common/mcu]
+/hdr/va416xx.h:    Changed version to V1.4
+/hdr/va416xx.h:    Fixed - WDOG Peripheral Struct Definition - WDOGLOCK register previously in wrong location
+
+[/apps/blinky]
+/hdr/board.h:			 Changed version to V2.04
+/hdr/hal_config.h: Added ADC_VREF_MV (vref in millicolts) to use in fixed point calculations
+/hdr/hal_config.h: Added SysTick Setup information
+/hdr/hal_config.h: SPI configuration has changed with new SPI driver
+/src/main.c:			 Updated hal_systick_init() call in loss of clock handler
+
+[/apps/bootloader]
+/hdr/board.h:			 Changed version to V2.04
+/hdr/hal_config.h: Added ADC_VREF_MV (vref in millicolts) to use in fixed point calculations
+/hdr/hal_config.h: Added SysTick Setup information
+/hdr/hal_config.h: SPI configuration has changed with new SPI driver
+/src/hardfault_handler.c:	Edited printf calls in hardfault handler to suppress GCC warnings
+/src/main.c:			 Updated hal_systick_init() call in loss of clock handler
+/src/bootloader.c: Added peripheral resets to Bootloader_RunApp()
+
+[/apps/demo]
+/hdr/board.h:			 Changed version to V2.04
+/hdr/hal_config.h: Added ADC_VREF_MV (vref in millicolts) to use in fixed point calculations
+/hdr/hal_config.h: Added SysTick Setup information
+/hdr/hal_config.h: SPI configuration has changed with new SPI driver
+/src/command_interface.c:	Bugfix: SPI DMA example TX buffer changed to 32-bit to avoid BMSTOP/BMSKIP aliasing
+/src/command_interface.c: Bugfix: sscanf() call in CommandInterfaceMainTask() only worked with numbers <0x80000000 in gcc, fixed to work with full u32 range
+/src/main.c:			 Updated hal_systick_init() call in loss of clock handler
+
+[/apps/freertos_blinky]
+/hdr/board.h:			 Changed version to V2.04
+/hdr/hal_config.h: Added ADC_VREF_MV (vref in millicolts) to use in fixed point calculations
+/hdr/hal_config.h: Added SysTick Setup information
+/hdr/hal_config.h: SPI configuration has changed with new SPI driver
+/src/main.c:			 Updated hal_systick_init() call in loss of clock handler
+
+[/apps/loader]
+/loader.c:         wr_fram() fixed use of register r1 before clearing to 0
+/loader.h:         removed redundant SPI BMSTOP bit definition
+
+
+
+VA416xx Board Support Package V2.03
+Changes since previous version (V2.02)
+Date: April 18, 2023
+
+Summary: Programmer's guide and datasheet updates, additional bootloader bugfix
+
+[docs]
+VA416x0 Programmers Guide v1.1.pdf:	Updated to version 1.1
+VA416x0_DS_2.2.pdf:			Updated to version 2.2
+
+[/apps/blinky]
+/hdr/board.h:		Updated version to V2.03
+
+[/apps/bootloader]
+/src/bootloader.c: 	Bugfix: Bootloader_RunApp() did not disable SysTick before running app (caused issue with FreeRTOS)
+/hdr/board.h:		Updated version to V2.03
+
+[/apps/demo]
+/hdr/board.h:		Updated version to V2.03
+
+[/apps/freertos_blinky]
+/hdr/board.h:		Updated version to V2.03
+
+
+
+VA416xx Board Support Package V2.02
+Changes since previous version (V2.01)
+Last update Date: March 21, 2023
+
+Summary: Bugfix release for bootloader project
+
+[apps/bootloader]
+/src/bootloader.c: 	Bugfix: CopyApplicationImageToFRAM() wasn't performing verify
+/src/uart.c: 		Bugfix: Logic operation in UART0GetBuffer(), UART1GetBuffer(), UART2GetBuffer() used bitwise AND instead of boolean
+/src/bootloader.c,	
+/hdr/bootloader.h:	Bugfix: Size calculation wrong if FW image larger than 64kb due to using 16-bit integer for length storage
+/hdr/board.h:		Updated version to V2.02
+
+VA416xx Board Support Package V2.01
+Changes since previous version (V2.00)
+Last update Date: January 20, 2023
+
+-Removed /common/drivers/eth/
+-Removed /common/drivers/spw/
+-Bugfix in BITMASK macro in /common/drivers/hdr/va416xx_hal_canbus.h
+
+VA416xx Board Support Package V2.00
+Changes since previous version (V1.20)
+Last update Date: December 21, 2022
+
+-Added VS code workspace and CMake files
+-Separated KEIL and IAR project files from the application source (common to all supported toolchains)
+-removed need for event_handler_index.c / .h - new callback mechanism using weak functions
+
+VA416x0 EVK 1.20 Changelog (from Version 1.12)
+Last update Date: June 17, 2022
+
+Main new features for 1.20: Improved ARM Compiler V6 (GCC / CLANG) support, added VA41628 EVK, timer and accelerometer code improvement
+
+[Common]
+SEGGER RTT code: updated to V7.66C
+va416xx_hal.h: added WDFEED macro
+va416xx_debug.c: formatting change, added newlines before each debug print 
+va416xx_hal.c: removed WDFEED macro - moved to header file
+va416xx_hal_dma.c: fix for control block define to support GCC / CLANG
+va416xx_hal_timer.c: fixed off by one error in timer initializations
+i2c_lis2de12.c: modified to use generic accel interface / handle
+i2c_lis2de12.h: modified to use generic accel interface / handle
+
+
+VA416x0 EVK 1.12 Changelog (from Version 1.11)
+Last update Date: March 9, 2022
+
+This release intended for use with RevB silicon. '__MCU_HW_VER_REVB' is defined by default in board.h (this will affect new HAL drivers like clkgen).
+Define this in board.h when using HAL drivers with RevB for best operation.
+
+Main new features for 1.12: Added ethernet PHY loopback test, added DAC sine wave generation, added SPI DMA example, FRAM sleep
+
+If all tests enabled to compile (enable #defines in board.h), will exceed 32K limit for free version of Keil / IAR. Turn off all except INC_PHY_TEST
+if compiling to run the PHY test using the eval version of Keil or IAR.
+
+Changed:
+
+[proj structure]
+-startup_va416xx.s and startup_IAR_va416xx.s moved to local project src folder, because heap size changed from default to 0x1000 bytes.
+
+[Proj]
+-startup_va416xx.s and startup_IAR_va416xx.s: heap size changed from 0xc00 to 0x1000
+-can_test.c: fixed CAN timing to better work with 100MHz sysclk
+-main.c: Initialize() now puts FRAM into sleep mode.
+
+[Common]
+-va416xx_hal_dma.c/.h: updated to V0.4 - added HAL_DMA_RestartPriBasic(uint8_t, uint32_t)
+-spi_fram.c/.h: FRAM_UnInit() puts FRAM into sleep mode, FRAM_Init() now handles FRAM wake. For radiation robustness
+
+Added:
+
+[Proj]
+-phy_test.c: ethernet PHY loopback test
+-board.h: added "INC_XYZ_TEST" flags to enable/disable compiling of various tests, to reduce total compile size.
+-cmd_interface.c/.h: added $dacsine command, $spidma command, $phytest command, updated help
+
+[Common]
+-utils/src/dac_sine.c: generates sine wave using DAC
+-utils/hdr/dac_sine.h: generates sine wave using DAC
+
+VA416x0 EVK 1.11 Changelog (from Version 1.10)
+Release date: December 11, 2020
+
+This release intended for use with RevB silicon. '__MCU_HW_VER_REVB' is defined by default in board.h (this will affect new HAL drivers like clkgen).
+Define this somewhere in your project when using HAL drivers with RevB for best operation.
+
+New For 1.11: Added IAR support. EVK project includes an IAR project folder, EVK flash drive image contains AR flashloader
+Intended for use with IAR EWARM 8.50.6.
+
+Segger RTT files have been updated to use ones from latest Segger 6.88 release.
+
+Changed:
+New PACK file 1.0.4 (new SVD file and header and IAR startup file)
+
+[Common]
+-mcu/va416xx.h			fixed ethernet dma status reg (changed to RW). Added missing SPI_DATA register bit
+-mcu/va416xx.svd		fixed SPW register definitions, fixes debugger issue
+-drv/va416xx_hal_spi.c	fixed redefintion of SPI_DATA register bits
+-utils/segger RTT		updated to v6.88
+-utils/spi_fram.c		fixed redefintion of SPI_DATA register bits
+
+[Proj]
+-board.h				updated version
+-main.c                 updated version
+
+Added:
+
+[Common]
+-startup_IAR_va416xx.s	IAR startup file
+
+[Proj]
+- *** ADDED IAR EWARM 8.50.6+ folder and project *** -
+
+VA416x0 EVK 1.10 Changelog (from Version 1.09)
+
+This release intended for use with RevB silicon. '__MCU_HW_VER_REVB' is defined by default in board.h (this will affect new HAL drivers like clkgen).
+Define this somewhere in your project when using HAL drivers with RevB for best operation.
+
+Changed:
+[Docs]
+-Updated programmer's guide
+
+[Common]
+-va416xx_hal_clkgen.h	Updated driver version in header to 0.4.1
+-va416xx_hal_clkgen.c 	Minor update, checks for if '__MCU_HW_VER_REVB' is defined (RevB), if so, enables PLL_LOCK_LOST_DET function when SYSCLK on PLL (loss of lock detection fixed).
+
+[Proj]
+-board.h				Updated project version and date
+-main.c                 Changed welcome message slightly (added build time and date)
+
+Added:
+[Proj]
+-board.h				added: #define __MCU_HW_VER_REVB
+-main.c                 Added example uart0 callback (not enabled by default). Enable: uncomment main.c line 161
+
+Removed:
+[Proj]
+-main.c                 main() no longer calls ADC software cal routine. Not needed for RevB
+-cmd_interface.c        $readadc outputs raw ADC values, no gain or offset correction (removed ADC correction).
+
+VA416x0 EVK 1.09 Changelog (from Version 1.08)
+
+Changed:
+[Docs]
+-Updated datasheets and programmer's guide
+
+[Common]
+-va416xx_hal_clkgen.h	Updated driver version to 0.4.0
+-va416xx_hal_clkgen.c 	Significant improvement to PLL multiply / divider settings calculation (clockgen update key reason for this SW release)
+
+[Proj]
+-board.h		Updated project version and date
+-cmd_interface.c        '$clkpll' command no longer hardcoded to xtal_n as reference cource, will use current external source
+-cmd_interface.h        Version and date, added "CmdEnum_ClkXtal" to command enum table
+-main.c			Initialize(): Set up RTT before clockgen, to allow clockgen debug output to work
+-main.c 		main(): changed method of triggering OnceEverySecondTasks() and incrementing gSecondsCounter to be more robust
+
+Added:
+[Common]
+-va416xx_hal_clkgen.c	Added optional SYSCLK/4 output on ROM_SCK for PLL test purposes (disabled by default. Enable by un-commenting '//#define __SPI3_SYSCLK_4')
+
+[Proj]
+-board.h		Added "gCurrentXtalsel" and "gSecondsCounter" to global variables "extern" list
+-cmd_interface.c	Added '$clkxtal' command (enable crystal amplifier and clock from this source)
+-cmd_interface.h        Added "CmdEnum_ClkXtal" to command enum table
+-main.c 		main(): added PROCID to welcome message
+
+Removed:
+<none>
+
+VA416x0 EVK 1.08 Changelog (from Version 1.07)
+
+Changed:
+[PACK]
+-PACK updated to version 1.03:
+      			Updated va416xx.h
+			Updated va416xx SVD file
+			Updated preliminary datasheet to V0.96
+			Updated Programmer's Guide to V0.91
+[Common]
+-va416xx.h		Updated Ethernet register descriptions
+-va416xx_hal.c		HAL_SysTick_Init(): SysTick interrupt now low priority
+-hardfault_handler.c	Printf statements changed to dbgprintf, so can be enabled/disabled with DEBUG_PRINTS #define
+
+[Proj]
+-board.h		Updated project version and date
+-cmd_interface.c	ADC_ReadAndPrint() prints corrected raw counts and voltage
+-cmd_interface.c	EBI_Init() uses faster settings for SRAM on CE1
+-cmd_interface.c	EBI_Write() will call init if not already initialized
+-cmd_interface.c	EBI_Write() can use 0x10000000 or 0x60000000 address range
+-cmd_interface.c	EBI_ReadAndPrint() will call init if not already initialized
+-cmd_interface.c	EBI_ReadAndPrint() can use 0x10000000 or 0x60000000 address range
+-main.c			Simplified TIM0_IRQHandler()
+
+Added:
+[Common]
+-va416xx_hal_adc_swcal.c/.h   added ADC software calibration C file using DAC0 or DAC1
+-va416xx_hal_dma.c/.h	Added HAL_DMA_SRAMtoPeriph8()
+-va416xx_hal_dma.c/.h	Added HAL_DMA_SRAMtoPeriph16()
+-va416xx_hal_dma.c/.h	Added HAL_DMA_SRAMtoPeriph32()
+-va416xx_hal_dma.c/.h	Added HAL_DMA_PeriphToSRAM8()
+-va416xx_hal_dma.c/.h	Added HAL_DMA_PeriphToSRAM16()
+-va416xx_hal_dma.c/.h	Added HAL_DMA_PeriphToSRAM32()
+
+[Proj]
+-cmd_interface.c	Added four new clock control commands, clock from PLL and set speed, clock from internal clk, from external, get clk speed
+-cmd_interface.h	Added clock control CmdEnums
+-main.c			main() calls HAL_ADC_SoftwareCal() after initialization
+-main.c			Added dummy NMI handler
+-main.c			RTT mode changed to SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL to try and prevent log data loss
+
+Removed:
+-va416xx.h		Removed UART_FIFO_CLR_RXSTS and UART_FIFO_CLR_TXSTS bits, these bits do not exist
+
+Fixed:
+[Common]
+-va416xx.h		Fixed RAM0_MBE/RAM1_SBE register definitions (originally these two were swapped)
+-va416xx.h		Fixed UART FIFO_CLR bit definitions - tr and rx fifo clear bit are b1 and b0
+-va416xx_hal_dma.c	Fixed #define DMA_PERID (0x...) - was previously incorrect value in the code (did not match hardware)
+-va416xx_hal_dma.h	Fixed typo in line 90: #define DMA_CHNL_CFG_CYCLE_CTRL_PINGPONG   (3) // was incorrectly DMA_CHNL_CFG_CYCLE_CTRL_PINGPING
+
+VA416x0 EVK 1.07 Changelog (from Version 1.03)
+
+Changed:
+-PACK file updated to version 1.02
+-Updated flash loaders to disable watchdog if enabled
+[Common]
+-va416xx_hal.c:          HAL_SysTick_Init(): minor improvement to systick load register math
+-va416xx_hal_adc.c/.h:   HAL_ADC_Init() and HAL_ADC_DeInit() now return hal_status_t enum
+-va416xx_hal_adc.c:      HAL_ADC_ReadTempSensorManualTrigger(): removed retries (unnecessary with ADX clock fix)
+-va416xx_hal_clkgen.c:   HAL_Clkgen_Init(): Sets ADC clock divide ratio, only uses /4 or /8
+-va416xx_hal_dac.c:      HAL_DAC_Init(): now checks for bad DAC fifo flags and returns periphError if so
+-va416xx_hal_dac.c:      HAL_DAC_ManualTrigger(): added NOPs between manual trigger en and check busy bit
+-va416xx_hal_ioconfig.c: ConfigureIODefault(): DEFAULT_PIN_IOCFG now chan be defined by user
+-spi_fram.c:             Does not use HAL SPI driver by default, option to enable hal driver use
+[Proj]
+-cmd_interface.c:        buildRxCmd(): Minor improvement to UART rx character processing
+-cmd_interface.c:        ADC_ReadAndPrint(): use HAL_ADC_ReadSingle() instead of HAL_ADC_ReadChanManualTrig()
+-main.c                  Initialize(): Sets up EDAC and (optional) watchdog, generates clkgen report if error, checks return ststus on DAC_Init()
+-board.h                 Updated project version
+-board.h                 ADC_VREF def improvement
+
+Added:
+[Common]
+-va416xx_hal_adc.c:      added peripheral ID register check to HAL_ADC_Init()
+-va416xx_hal_adc.c/.h:   added HAL_ADC_SetExtTrigEnable()
+-va416xx_hal_adc.c/.h:   added HAL_ADC_ReadSingle()    *Use instead of HAL_ADC_ReadChanManualTrig()*
+-va416xx_hal_adc.c/.h:   added HAL_ADC_ManualTrigger() *Use instead of HAL_ADC_ReadChanManualTrig()*
+-[utils]                 added hardFault_handler.c and hardFault_handler.s
+-[utils]                 added utils.c/.h
+-[utils]                 added vectrst.s
+[Proj]
+-main.c                  added ConfigureEdac(), EnableWatchdog(), WDFEED()
+-main.c                  added EDAC_MBE_IRQHandler(), EDAC_SBE_IRQHandler()
+-board.h                 added (commented out) ENABLE_WATCHDOG def
+
+Removed:
+[none]
+
+Fixed:
+-va416xx_hal_adc.c:      HAL_ADC_Init(): fixed ADC clock divider settings - only use /8 or /4 now
+-va416xx_hal_dac.c:      HAL_DAC_ReadCal(): fixed bug where only returned DAC0_CAL

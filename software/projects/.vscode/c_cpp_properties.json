@@ -1,0 +1,58 @@
+{
+    "configurations": [
+        {
+            "name": "blinky",
+            "includePath": [
+                "${workspaceFolder}/apps/blinky/**",
+                "${workspaceFolder}/common/**"
+            ],
+            "defines": [],
+            "compilerPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2021.10\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "windows-gcc-arm",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "freertos_blinky",
+            "includePath": [
+                "${workspaceFolder}/apps/freertos_blinky/**",
+                "${workspaceFolder}/common/**",
+                "${workspaceFolder}/freertos/**"
+            ],
+            "defines": [],
+            "compilerPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2021.10\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "windows-gcc-arm",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "demo",
+            "includePath": [
+                "${workspaceFolder}/apps/demo/**",
+                "${workspaceFolder}/common/**"
+            ],
+            "defines": [],
+            "compilerPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2021.10\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++11",
+            "intelliSenseMode": "windows-gcc-arm",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        },
+        {
+            "name": "bootloader",
+            "includePath": [
+                "${workspaceFolder}/apps/bootloader/**",
+                "${workspaceFolder}/common/**"
+            ],
+            "defines": [],
+            "compilerPath": "C:\\Program Files (x86)\\GNU Arm Embedded Toolchain\\10 2021.10\\bin\\arm-none-eabi-gcc.exe",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++17",
+            "intelliSenseMode": "windows-gcc-arm",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
+}

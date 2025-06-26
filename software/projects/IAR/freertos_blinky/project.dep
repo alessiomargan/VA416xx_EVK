@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+    <fileVersion>5</fileVersion>
+    <fileChecksum>2137297507</fileChecksum>
+    <configuration>
+        <name>Debug</name>
+        <outputs>
+            <file>$PROJ_DIR$\..\..\common\drivers\src\va416xx_debug.c</file>
+            <file>$PROJ_DIR$\..\..\common\mcu\src\system_va416xx.c</file>
+            <file>$PROJ_DIR$\..\..\common\drivers\src\va416xx_hal_irqrouter.c</file>
+            <file>$PROJ_DIR$\..\..\common\utils\src\segger_rtt.c</file>
+            <file>$PROJ_DIR$\..\..\common\utils\src\spi_fram.c</file>
+            <file>$PROJ_DIR$\..\..\common\drivers\src\va416xx_hal.c</file>
+            <file>$PROJ_DIR$\..\..\common\drivers\src\va416xx_hal_timer.c</file>
+            <file>$PROJ_DIR$\..\..\common\drivers\src\va416xx_hal_clkgen.c</file>
+            <file>$PROJ_DIR$\..\..\common\utils\src\segger_rtt_printf.c</file>
+            <file>$PROJ_DIR$\..\..\common\drivers\src\va416xx_hal_ioconfig.c</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\src\freertos.c</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\src\hardFault_handler.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\croutine.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\list.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\queue.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\event_groups.c</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\src\board.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\tasks.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\timers.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\stream_buffer.c</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\src\startup_IAR_va416xx.s</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\src\uart.c</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\src\main.c</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\hdr\hal_config.h</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\hdr\board.h</file>
+            <file>$PROJ_DIR$\..\..\apps\freertos_blinky\hdr\uart.h</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\portable\MemMang\heap_4.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\portable\IAR\ARM_CM4F\port.c</file>
+            <file>$PROJ_DIR$\..\..\freeRTOS\Source\portable\IAR\ARM_CM4F\portasm.s</file>
+        </outputs>
+        <forcedrebuild>
+            <name>[REBUILD_ALL]</name>
+        </forcedrebuild>
+    </configuration>
+    <configuration>
+        <name>Release</name>
+        <outputs />
+        <forcedrebuild>
+            <name>[MULTI_TOOL]</name>
+            <tool>ILINK</tool>
+        </forcedrebuild>
+        <forcedrebuild>
+            <name>[REBUILD_ALL]</name>
+        </forcedrebuild>
+    </configuration>
+</project>

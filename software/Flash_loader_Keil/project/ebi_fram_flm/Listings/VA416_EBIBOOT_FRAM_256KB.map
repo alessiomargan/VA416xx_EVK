@@ -1,0 +1,137 @@
+Component: Arm Compiler for Embedded 6.18 Tool: armlink [5e4cc100]
+
+==============================================================================
+
+Removing Unused exception sections from the image.
+
+    Removing flash_prg.o(.ARM.exidx), (96 bytes).
+
+1 unused section(s) (total 96 bytes) removed from the image.
+
+==============================================================================
+
+Image Symbol Table
+
+    Local Symbols
+
+    Symbol Name                              Value     Ov Type        Size  Object(Section)
+
+    ../clib/memcpset.s                       0x00000000   Number         0  rt_memclr_w.o ABSOLUTE
+    dc.s                                     0x00000000   Number         0  dc.o ABSOLUTE
+    flash_dev.c                              0x00000000   Number         0  flash_dev.o ABSOLUTE
+    flash_prg.c                              0x00000000   Number         0  flash_prg.o ABSOLUTE
+    [Anonymous Symbol]                       0x00000000   Section        0  flash_prg.o(.text)
+    .text                                    0x000002d8   Section       78  rt_memclr_w.o(.text)
+
+    Global Symbols
+
+    Symbol Name                              Value     Ov Type        Size  Object(Section)
+
+    BuildAttributes$$THM_ISAv4$E$P$D$K$B$S$7EM$VFPi3$EXTD16$VFPS$VFMA$PE$A:L22UL41UL21$X:L11$S22US41US21$IEEE1$IW$RWPI$~STKCKD$USESV7$~SHL$OTIME$ROPI$STANDARDLIB$REQ8$PRES8$EABIv2 0x00000000   Number         0  anon$$obj.o ABSOLUTE
+    VOR_GPIOC_PinMux                         0x00000001   Thumb Code    26  flash_prg.o(.text)
+    VOR_GPIOD_PinMux                         0x0000001d   Thumb Code    26  flash_prg.o(.text)
+    VOR_GPIOE_PinMux                         0x00000039   Thumb Code    26  flash_prg.o(.text)
+    VOR_GPIOF_PinMux                         0x00000055   Thumb Code    26  flash_prg.o(.text)
+    initEBI_funsel                           0x00000071   Thumb Code   436  flash_prg.o(.text)
+    Init                                     0x00000225   Thumb Code    42  flash_prg.o(.text)
+    UnInit                                   0x00000251   Thumb Code     4  flash_prg.o(.text)
+    EraseChip                                0x00000255   Thumb Code    18  flash_prg.o(.text)
+    EraseSector                              0x00000269   Thumb Code     4  flash_prg.o(.text)
+    ProgramPage                              0x0000026d   Thumb Code    98  flash_prg.o(.text)
+    BlankCheck                               0x000002d1   Thumb Code     4  flash_prg.o(.text)
+    Verify                                   0x000002d5   Thumb Code     4  flash_prg.o(.text)
+    __aeabi_memclr4                          0x000002d9   Thumb Code     0  rt_memclr_w.o(.text)
+    __aeabi_memclr8                          0x000002d9   Thumb Code     0  rt_memclr_w.o(.text)
+    __rt_memclr_w                            0x000002d9   Thumb Code     0  rt_memclr_w.o(.text)
+    _memset_w                                0x000002dd   Thumb Code    74  rt_memclr_w.o(.text)
+    FlashDevice                              0x0000032c   Data        4256  flash_dev.o(.rodata.FlashDevice)
+
+
+
+==============================================================================
+
+Memory Map of the image
+
+  Image entry point : Not specified.
+
+  Load Region PRG (Base: 0x00000000, Size: 0x0000032c, Max: 0xffffffff, PI)
+
+    Execution Region PrgCode (Exec base: 0x00000000, Load base: 0x00000000, Size: 0x00000328, Max: 0xffffffff, PI)
+
+    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
+
+    0x00000000   0x00000000   0x000002d8   Code   RO            1    .text               flash_prg.o
+    0x000002d8   0x000002d8   0x0000004e   Code   RO           17    .text               c_we.l(rt_memclr_w.o)
+
+
+    Execution Region PrgData (Exec base: 0x00000328, Load base: 0x00000328, Size: 0x00000004, Max: 0xffffffff, PI)
+
+    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
+
+    0x00000328   0x00000328   0x00000004   Data   RW           20    PDT$$ptr            anon$$obj.o
+
+
+
+  Load Region DSCR (Base: 0x0000032c, Size: 0x000010a0, Max: 0xffffffff, PI)
+
+    Execution Region DevDscr (Exec base: 0x0000032c, Load base: 0x0000032c, Size: 0x000010a0, Max: 0xffffffff, PI)
+
+    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
+
+    0x0000032c   0x0000032c   0x00000000   Code   RO            9    .text               flash_dev.o
+    0x0000032c   0x0000032c   0x000010a0   Data   RO           10    .rodata.FlashDevice  flash_dev.o
+
+
+==============================================================================
+
+Image component sizes
+
+
+      Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Object Name
+
+         0          0       4256          0          0        802   flash_dev.o
+       728          0          0          0          0       6330   flash_prg.o
+
+    ----------------------------------------------------------------------
+       728          0       4256          4          0       7132   Object Totals
+         0          0          0          4          0          0   (incl. Generated)
+         0          0          0          0          0          0   (incl. Padding)
+
+    ----------------------------------------------------------------------
+
+      Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Library Member Name
+
+        78          0          0          0          0         76   rt_memclr_w.o
+
+    ----------------------------------------------------------------------
+        80          0          0          0          0         76   Library Totals
+         2          0          0          0          0          0   (incl. Padding)
+
+    ----------------------------------------------------------------------
+
+      Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Library Name
+
+        78          0          0          0          0         76   c_we.l
+
+    ----------------------------------------------------------------------
+        80          0          0          0          0         76   Library Totals
+
+    ----------------------------------------------------------------------
+
+==============================================================================
+
+
+      Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
+
+       808          0       4256          4          0       7208   Grand Totals
+       808          0       4256          4          0       7208   ELF Image Totals
+       808          0       4256          4          0          0   ROM Totals
+
+==============================================================================
+
+    Total RO  Size (Code + RO Data)                 5064 (   4.95kB)
+    Total RW  Size (RW Data + ZI Data)                 4 (   0.00kB)
+    Total ROM Size (Code + RO Data + RW Data)       5068 (   4.95kB)
+
+==============================================================================
+
