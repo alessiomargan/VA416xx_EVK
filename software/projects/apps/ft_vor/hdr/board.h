@@ -41,9 +41,9 @@
 #define __MCU_HW_VER_REVB
 
 /* Define one of these */
-#define __VA41628__
+//#define __VA41628__
 //#define __VA41629__
-//#define __VA416X0__
+#define __VA416X0__
 
 /** BSP selection */
 #if defined(__VA41628__)
@@ -52,13 +52,13 @@
 #elif defined(__VA416X0__)
 #include "peb1_va416xx_evk.h"
 #define DEVICE_NAME "VA416X0"
-elif defined(__VA41629__)
+#elif defined(__VA41629__)
 #include "peb1_va416xx_evk.h"
 #define DEVICE_NAME "VA41629"
 #endif
 
 /** Software Version */
-#define SOFTWARE_VERSION_STR  "2023_12_14_2.05"
+#define SOFTWARE_VERSION_STR  "2025_MM_DD_x.yy"
 #define SOFTWARE_VERSION (0x00020005UL)
 
 // assert enable/disable (comment out to disable)
@@ -71,7 +71,7 @@ elif defined(__VA41629__)
 #define DEBUG_NO_HAL
 
 // Enable Segger RTT (comment out to disable)
-#define ENABLE_RTT
+//#define ENABLE_RTT
 
 // turn calls to printf() into VOR_printf()
 #define PRINTF_REDEFINE

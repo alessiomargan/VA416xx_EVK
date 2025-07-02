@@ -46,6 +46,13 @@
 #define BLINK_TIMER_MS   (200)
 #define BLINK_TIMER_PRIO (7)
 
+#define RESET_PERIPHERALS() do{                   \
+  VOR_SYSCONFIG->PERIPHERAL_RESET = 0x00000000UL; \
+  __NOP();                                        \
+  __NOP();                                        \
+  VOR_SYSCONFIG->PERIPHERAL_RESET = 0xFFFFFFFFUL; \
+} while(0)
+
 /*****************************************************************************/
 /* Global variable definitions (declared in header file with 'extern')       */
 /*****************************************************************************/
@@ -122,6 +129,8 @@ static uint8_t Initialize(void)
 {
   hal_status_t clkgen_status = hal_status_ok;
   uint8_t initerrs = 0;
+
+  RESET_PERIPHERALS();
 
 #ifdef ENABLE_RTT
   // stdio/stderr -> Segger RTT (if ENABLE_RTT defined in board.h)
