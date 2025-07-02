@@ -24,6 +24,16 @@
             }
         },
         {
+            "label": "ft_vor",
+            "type": "shell",
+            "command": "make ft_vor",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
             "label": "demo",
             "type": "shell",
             "command": "make demo",
@@ -53,6 +63,5 @@
                 "isDefault": true
             }
         }
-
     ]
 }

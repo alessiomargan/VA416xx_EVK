@@ -112,6 +112,7 @@ add_subdirectory(apps/eraser)
 add_subdirectory(apps/blinky/src)
 add_subdirectory(apps/freertos_blinky/src)
 add_subdirectory(apps/demo/src)
+add_subdirectory(apps/ft_vor/src)
 
 function(build_target target src)
 	add_executable(${target} "${${src}}" "${COMMON_SRC}")
@@ -171,4 +172,6 @@ build_loader(eraser ERASER_SRC)
 build_target(blinky BLINKY_SRC)
 build_freertos_target(freertos_blinky FREERTOS_BLINKY_SRC)
 build_target(demo DEMO_SRC)
+build_target(ft_vor FT_VOR_SRC)
+
 
