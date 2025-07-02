@@ -109,7 +109,7 @@
 
 /* If defined, includes CAN loopback test in EVK build */
 #if defined(__VA416X0__)
-//#define INC_CAN_TEST
+#define INC_CAN_TEST
 #endif
 
 /* If defined, includes PHY loopback test in EVK build */
