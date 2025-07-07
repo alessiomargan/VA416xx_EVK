@@ -30,6 +30,7 @@
 #include "va416xx.h"
 #include "board.h"
 #include "uart.h"
+#include "peripherals.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
@@ -174,7 +175,8 @@ static uint8_t Initialize(void)
   UartInit(VOR_UART0, UART_BAUDRATE);
   VOR_PORTG->CLROUT = 1UL<<2; // PG2 output low
 
-
+  ConfigureCAN0();
+  
   // Debug prints and printf destination
   // Will route printf to a UART if RTT is not enabled
 #ifndef ENABLE_RTT
