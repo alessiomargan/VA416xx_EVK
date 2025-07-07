@@ -1,0 +1,49 @@
+# What OS am I running on?
+ifdef OS # Windows
+    define remove_dir
+        @if exist $(1) rmdir /s/q $(1)
+    endef
+else     # Linux
+    ifeq ($(shell uname), Linux)
+        define remove_dir
+            @rm -rf $(1)
+        endef
+    endif
+endif
+
+# Optimization level
+opt = Os
+
+# Builds
+init:
+	$(call remove_dir, build)
+	@mkdir build
+	@cmake -E chdir build cmake -G "Unix Makefiles" -DOPT=$(opt) ..
+
+clean:
+	@echo Removing build files
+	@make -C build clean
+
+blinky:
+	@make -C build blinky
+
+ft_vor:
+	@make -C build ft_vor
+
+freertos_blinky:
+	@make -C build freertos_blinky
+
+demo:
+	@make -C build demo
+
+bootloader:
+	@make -C build bootloader
+
+loader:
+	@make -C build loader
+
+eraser:
+	@make -C build eraser
+
+all:
+	@make -C build all
