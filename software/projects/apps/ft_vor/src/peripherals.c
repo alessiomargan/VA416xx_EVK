@@ -25,12 +25,18 @@ void ConfigureCAN0(void)
     /* CAN configuration structure */
     can_config_t canConfig;
     
-    /* Configure CAN timing for 500 kbps with 16MHz clock */
-    canConfig.CTIM_PSC = 0;    /* Prescaler = 2 (value + 2) */
-    canConfig.CTIM_SJW = 3;    /* Sync Jump Width = 4 (value + 1) */
-    canConfig.CTIM_TSEG1 = 10; /* TSEG1 = 11 (value + 1) */
-    canConfig.CTIM_TSEG2 = 3;  /* TSEG2 = 4 (value + 1) */
-    
+    /*
+    Configure CAN timing for 500 kbps 
+    with System clock = 100MHz, CAN peripheral input clock, CKI = 50MHz
+    50MHz / (PSC * (1+TSEG1+TSEG2))
+    50MHz / (10 * (1+3+6))
+    */
+    canConfig.CTIM_TSEG2 = (6UL-1UL);  //6 time quanta 
+    canConfig.CTIM_TSEG1 = (3UL-1UL);  //3 time quanta
+    canConfig.CTIM_SJW   = (1UL-1UL);  //1 time quanta
+    canConfig.CTIM_PSC   = (10UL-2UL);  //CAN PreScalar=10
+    canConfig.CICEN      = (BITMASK(ALLF,14,0)<<CAN_CICEN_ICEN_Pos)
+                       |(CAN_CICEN_EICEN_Msk);
     /*
      Configure CAN general settings
     The CGCR is used to:
@@ -91,7 +97,20 @@ void ConfigureCAN0(void)
     rtrRespPkt.data16[2] = 0x9ABC;
     rtrRespPkt.data16[3] = 0xDEF0;
     
-    HAL_Can_sendCanPkt(rxRtrBuf, &rtrRespPkt);
+    //HAL_Can_sendCanPkt(rxRtrBuf, &rtrRespPkt);
+    
+    can_pkt_t testPkt;
+    testPkt.msgType = en_can_cmb_msgtype_STD11;
+    testPkt.id = 0x100; 
+    testPkt.dataLengthBytes = 8;
+    testPkt.data16[0] = 0x1234;
+    testPkt.data16[1] = 0x5678;
+    testPkt.data16[2] = 0x9ABC;
+    testPkt.data16[3] = 0xDEF0;
+    
+    HAL_Can_sendCanPkt(rxRtrBuf, &testPkt);
+    
+    
     
     /* Enable NVIC interrupt for CAN0 */
     NVIC_EnableIRQ(CAN0_IRQn);
