@@ -215,15 +215,14 @@ int main(void)
   printf("\r\nHello World!\r\n");
 
   // setup timer 0 to interrupt every 0.5 second (blinks PG5 LED)
-  (void)HAL_Timer_SetupPeriodicIrqMs(BLINK_TIMER_NUM, \
-    BLINK_TIMER_MS, BLINK_TIMER_PRIO);
+  (void)HAL_Timer_SetupPeriodicIrqMs(BLINK_TIMER_NUM, BLINK_TIMER_MS, BLINK_TIMER_PRIO);
 
   while(1)
   {
     if(HAL_time_ms >= nextSecTask_ms){
       gSecondsCounter++;
       nextSecTask_ms += 1000;
-      printf("seconds: %d\r\n", gSecondsCounter);
+      printf("seconds: %d\n", gSecondsCounter);
     }
 
     WDFEED();
