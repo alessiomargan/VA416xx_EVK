@@ -24,5 +24,6 @@
       "dac_sine.h": "c",
       "peb1_va416xx_evk.h": "c"
     },
-    "cortex-debug.registerUseNaturalFormat": false
+    "cortex-debug.registerUseNaturalFormat": false,
+    "cortex-debug.variableUseNaturalFormat": false
 }

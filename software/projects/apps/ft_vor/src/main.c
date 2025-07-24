@@ -222,7 +222,7 @@ int main(void)
     if(HAL_time_ms >= nextSecTask_ms){
       gSecondsCounter++;
       nextSecTask_ms += 1000;
-      printf("seconds: %d\n", gSecondsCounter);
+      printf("seconds: %d\r\n", gSecondsCounter);
     }
 
     WDFEED();

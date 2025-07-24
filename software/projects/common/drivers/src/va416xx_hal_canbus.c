@@ -206,12 +206,18 @@ uint32_t HAL_Can_getCanPkt(can_cmb_t *can_cmb, can_pkt_t *myPkt)
   if((can_cmb->CNSTAT&CAN_CNSTAT_CMB0_ST_Msk)>=EN_CAN_CMB_CNSTAT_ST_TX){
     return 1; //buffer not confix for rx  
   }
-  
+  uint32_t timer = 1000000;
   while(    ((can_cmb->CNSTAT&CAN_CNSTAT_CMB0_ST_Msk)!=en_can_cmb_cnstat_st_RX_FULL) 
-         && ((can_cmb->CNSTAT&CAN_CNSTAT_CMB0_ST_Msk)!=en_can_cmb_cnstat_st_RX_OVERRUN)){
+         && ((can_cmb->CNSTAT&CAN_CNSTAT_CMB0_ST_Msk)!=en_can_cmb_cnstat_st_RX_OVERRUN)
+         && (timer != 0) ) {
+          timer--;
     //some sort of timeout would be good here instead of a hang
   }
   
+  if (timer == 0) {
+    return 3;
+  }
+
   myPkt->dataLengthBytes=(can_cmb->CNSTAT)>>CAN0_CNSTAT_CMB0_DLC_Pos; //12
   if(myPkt->dataLengthBytes>8){
     return 2; //illegal data length??
