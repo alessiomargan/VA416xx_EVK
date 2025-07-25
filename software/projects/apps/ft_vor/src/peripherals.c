@@ -2,17 +2,45 @@
 #include "peripherals.h"
 
 #include "va416xx_hal_canbus.h"
+/**
+ * @brief Redefine some HAL can functions 
+ * 
+ */
+static inline void HAL_Can_ClearBufferStatus(can_cmb_t *can_cmb)
+{
+    can_cmb->CNSTAT = en_can_cmb_cnstat_st_RX_NOT_ACTIVE;
+}
 
-/*
-The CGCR is used to:
- - Enable/disable the CAN module
- - Configure the BUFFLOCK function for the message buffers 0 to 14
- - Enable/disable the time stamp synchronization
- - Set the logic levels of the CAN input/output pins
- - Choose the data storage direction
- - Select the error interrupt type
- - Enable/disable diagnostic functions
-*/
+static inline void HAL_Can_ClearAllBufferStatus(void)
+{
+    can_cmb_t *can_cmb = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0;
+    for (uint8_t i = 0; i <= 14; i++) {
+        can_cmb[i].CNSTAT = en_can_cmb_cnstat_st_RX_NOT_ACTIVE;
+    }
+}
+
+static inline void HAL_Can_Enable(VOR_CAN_Type *myCAN)
+{
+    uint32_t clk_enable;
+    if (myCAN == VOR_CAN0) {
+        clk_enable = CLK_ENABLE_CAN0;
+    } else if (myCAN == VOR_CAN1) {
+        clk_enable = CLK_ENABLE_CAN1;
+    } else {
+        return;
+    }
+
+    VOR_SYSCONFIG->PERIPHERAL_CLK_ENABLE |= clk_enable;
+    VOR_SYSCONFIG->PERIPHERAL_RESET &= ~clk_enable;
+    __NOP();
+    __NOP();
+    VOR_SYSCONFIG->PERIPHERAL_RESET |= clk_enable;
+
+    uint32_t* regPtr;
+    for(regPtr=(uint32_t *)myCAN; regPtr<=(uint32_t *)&myCAN->CTMR; regPtr++){
+        *regPtr = 0x0000;
+    }
+}
 
  /**
  * @brief Configures and initializes the CAN0 peripheral
@@ -23,7 +51,10 @@ The CGCR is used to:
 void ConfigureCAN0(void)
 {
     hal_can_id29_or_11_t dontCareIDNone=0x0;//care about all=must be exact match
-  
+    /* CAN configuration structure */
+    can_config_t canConfig;
+    
+#if 0  
     VOR_SYSCONFIG->PERIPHERAL_CLK_ENABLE |= CLK_ENABLE_CAN0 | CLK_ENABLE_CAN1;
     VOR_SYSCONFIG->PERIPHERAL_RESET &= ~(CLK_ENABLE_CAN0 | CLK_ENABLE_CAN1);
     __NOP();
@@ -37,10 +68,8 @@ void ConfigureCAN0(void)
     for(regPtr=(uint32_t *)VOR_CAN1; regPtr<=(uint32_t *)&VOR_CAN1->CTMR; regPtr++){
         *regPtr = 0x0000;
     }
-
-    /* CAN configuration structure */
-    can_config_t canConfig;
-    
+#endif
+    HAL_Can_Enable(VOR_CAN0);
     /*
     System clock = 100MHz, CAN peripheral input clock, CKI = 50MHz
     50MHz / (PSC * (1+TSEG1+TSEG2))
@@ -97,11 +126,12 @@ void ConfigureCAN0(void)
     HAL_Can_Setup_bMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone, 1, 1));
     
     /* Clear all CAN message buffers */
-    HAL_Can_ClearBuffer((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0 , 14); // 15 ?!?
+    //HAL_Can_ClearBuffer((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0 , 14); // 15 ?!?
+    HAL_Can_ClearAllBufferStatus();
 
     /* Configure receive message buffers (example for buffer 0) */
     /* ID 0x123, standard frame */
-    HAL_Can_ConfigCMB_Rx(0x123, en_can_cmb_msgtype_STD11, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0);
+    HAL_Can_ConfigCMB_Rx(0x123, en_can_cmb_msgtype_STD11_REM, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0);
     
 #if 0
     /* ID 0x100, standard frame */
@@ -148,7 +178,7 @@ void CAN0_IRQHandler(void)
     uint32_t    status_pending = VOR_CAN0->CSTPND; 
     uint32_t    irq_pending = VOR_CAN0->CIPND; 
     
-    printf("%s %d %d %d\n",__FUNCTION__,irq_pending,status_pending, error_counter);
+    printf("%s %lu %lu %lu\n",__FUNCTION__,irq_pending,status_pending, error_counter);
 
     /* Clear the interrupt flag for all buffers and error*/
     //VOR_CAN0->CICLR = 0xFFFF;
@@ -157,6 +187,10 @@ void CAN0_IRQHandler(void)
     if (irq_pending & 0x0001) {
         
         /* Get the received packet from buffer 0 */
+        /* NEED to review this function !!!!
+         * - no difference btw remote request frame and data frame
+         * - DATA0..DATA3 always copied , use dataLengthBytes ?!?!
+         */
         if ( HAL_Can_getCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0, &rxPkt) != 0) {            
             return;
         }
@@ -165,7 +199,7 @@ void CAN0_IRQHandler(void)
         VOR_CAN0->CNSTAT_CMB0 = en_can_cmb_cnstat_st_RX_READY;
         /* Prepare response packet */
         respPkt.id = 0x321;
-        respPkt.dataLengthBytes = 8;  /* Set appropriate data length */
+        respPkt.dataLengthBytes = rxPkt.dataLengthBytes;
         respPkt.txPriorityCode = 0;   /* Highest priority */
         respPkt.msgType = en_can_cmb_msgtype_STD11;
         respPkt.data16[0] = rxPkt.data16[0];
