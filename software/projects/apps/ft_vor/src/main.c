@@ -131,7 +131,7 @@ static uint8_t Initialize(void)
   hal_status_t clkgen_status = hal_status_ok;
   uint8_t initerrs = 0;
 
-  RESET_PERIPHERALS();
+    RESET_PERIPHERALS();
 
 #ifdef ENABLE_RTT
   // stdio/stderr -> Segger RTT (if ENABLE_RTT defined in board.h)

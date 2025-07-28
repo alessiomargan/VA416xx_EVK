@@ -117,7 +117,7 @@ void ConfigureCAN0(void)
     HAL_Can_Setup(VOR_CAN0, &canConfig, CAN0_IRQn);
     
     //VOR_CAN0->CIEN = (BITMASK(ALLF,14,0)<<CAN_CIEN_IEN_Pos) ;//| CAN_CIEN_EIEN_Msk;
-    VOR_CAN0->CIEN = 0x1 ; // only buffer 0 !!!
+    VOR_CAN0->CIEN = 0x7 ; // only buffers 0 1 2 !!!
     
     /* Set up global acceptance mask */
     HAL_Can_Setup_gMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone, 1, 1));
@@ -129,27 +129,27 @@ void ConfigureCAN0(void)
     //HAL_Can_ClearBuffer((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0 , 14); // 15 ?!?
     HAL_Can_ClearAllBufferStatus();
 
-    /* Configure receive message buffers (example for buffer 0) */
+    /* Configure receive message buffer 0 */
     /* ID 0x123, standard frame */
-    HAL_Can_ConfigCMB_Rx(0x123, en_can_cmb_msgtype_STD11_REM, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0);
-    
-#if 0
-    /* ID 0x100, standard frame */
-    HAL_Can_ConfigCMB_Rx(0x100, en_can_cmb_msgtype_STD11_REM, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB1);
-    /* Set up buffer 1 for automatic RTR response */
-    can_pkt_t autoRtrPkt;
-    autoRtrPkt.msgType = en_can_cmb_msgtype_STD11_REM_RESP;  // This is the key setting
-    autoRtrPkt.id = 0x100;  // ID that will trigger automatic response
-    autoRtrPkt.dataLengthBytes = 8;
-    autoRtrPkt.txPriorityCode = 0;  // Highest priority
-    /* Prepare response data */
-    autoRtrPkt.data16[0] = 0xAA55;
-    autoRtrPkt.data16[1] = 0xBB66;
-    autoRtrPkt.data16[2] = 0xCC77;
-    autoRtrPkt.data16[3] = 0xDD88;
-    /* Configure buffer 1 for auto-response */
-    HAL_Can_sendCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB2, &autoRtrPkt);
-#endif
+    HAL_Can_ConfigCMB_Rx(0x123, en_can_cmb_msgtype_STD11, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0);
+
+    hal_can_id29_or_11_t rem_req_resp_id = 0x100;
+    /* Configure rx msg buffer 1 */
+    /* ID 0x100, Remote Request */
+    HAL_Can_ConfigCMB_Rx(rem_req_resp_id, en_can_cmb_msgtype_STD11_REM, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB1);
+    /* Configure tx msg buffer 1 */
+    /* ID 0x100, Remote Transmit Response*/
+    /* Set up buffer 2 for automatic RTR response */
+    VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
+    VOR_CAN0->DATA0_CMB2 = 0xAA55;
+    VOR_CAN0->DATA1_CMB2 = 0xBB66;
+    VOR_CAN0->DATA2_CMB2 = 0xCC77;
+    VOR_CAN0->DATA3_CMB2 = 0xDD88;
+    VOR_CAN0->ID1_CMB2 = BITMASK_AND_SHIFTL(rem_req_resp_id,10,0,5); // | CAN_CMB_ID1_STD_RTR_Msk;
+    VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_TX_RTR
+                        | 8<<CAN_CNSTAT_CMB0_DLC_Pos 
+                        | 0<<CAN_CNSTAT_CMB0_PRI_Pos;
+
     
     can_pkt_t testPkt;
     testPkt.msgType = en_can_cmb_msgtype_STD11;
@@ -159,7 +159,7 @@ void ConfigureCAN0(void)
     testPkt.data16[1] = 0x5678;
     testPkt.data16[2] = 0x9ABC;
     testPkt.data16[3] = 0xDEF0;
-    HAL_Can_sendCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB5, &testPkt);
+    HAL_Can_sendCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB3, &testPkt);
  
 }
 
@@ -207,8 +207,25 @@ void CAN0_IRQHandler(void)
         respPkt.data16[2] = rxPkt.data16[2];
         respPkt.data16[3] = rxPkt.data16[3];
         /* Send the response using a free transmit buffer */
-        HAL_Can_sendCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB3, &respPkt);
-    }
+        HAL_Can_sendCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB4, &respPkt);
     
+    } else if (irq_pending & 0x0002) {
+        
+        //VOR_CAN0->DATA0_CMB2 = 0xCACA;
+        /* Clear the interrupt flag for buffer 1 */
+        VOR_CAN0->CICLR = 0x0002;
+        VOR_CAN0->CNSTAT_CMB1 = en_can_cmb_cnstat_st_RX_READY;
+    
+    } else if (irq_pending & 0x0004) {
+    
+        VOR_CAN0->DATA0_CMB2 += 0x1111;
+        VOR_CAN0->DATA1_CMB2 += 0x1111;
+        VOR_CAN0->DATA2_CMB2 += 0x1111;
+        VOR_CAN0->DATA3_CMB2 += 0x1111;
+        /* Clear the interrupt flag for buffer 2 */
+        VOR_CAN0->CICLR = 0x0004;
+        //VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_RX_READY;
+    
+    }
     /* Handle other buffer interrupts if needed */
 }
