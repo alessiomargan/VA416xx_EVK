@@ -6,6 +6,9 @@
  * @brief Redefine some HAL can functions 
  * 
  */
+
+ #define BIT(x) (1UL << (x))
+
 static inline void HAL_Can_ClearBufferStatus(can_cmb_t *can_cmb)
 {
     can_cmb->CNSTAT = en_can_cmb_cnstat_st_RX_NOT_ACTIVE;
@@ -42,6 +45,29 @@ static inline void HAL_Can_Enable(VOR_CAN_Type *myCAN)
     }
 }
 
+static inline uint32_t HAL_Can_getCanPktIRQ(can_cmb_t *can_cmb, can_pkt_t *myPkt)
+{
+    myPkt->id = can_cmb->ID1 >> 5;
+    
+    myPkt->dataLengthBytes = can_cmb->CNSTAT >> CAN0_CNSTAT_CMB0_DLC_Pos; //12
+    if(myPkt->dataLengthBytes>8){
+        return 1; //illegal data length??
+    }
+
+    //excess bytes beyond dataLengthBytes is junk but not cleared here 
+    myPkt->data16[0]=can_cmb->DATA0;
+    myPkt->data16[1]=can_cmb->DATA1;
+    myPkt->data16[2]=can_cmb->DATA2;
+    myPkt->data16[3]=can_cmb->DATA3;
+
+    myPkt->timestamp16=can_cmb->TSTP;
+
+    can_cmb->CNSTAT = en_can_cmb_cnstat_st_TX_NOT_ACTIVE; //clr state to RX_NOT_ACTIVE, wipes DLC/PRI too
+    
+    return 0;
+}
+
+
  /**
  * @brief Configures and initializes the CAN0 peripheral
  * 
@@ -54,21 +80,6 @@ void ConfigureCAN0(void)
     /* CAN configuration structure */
     can_config_t canConfig;
     
-#if 0  
-    VOR_SYSCONFIG->PERIPHERAL_CLK_ENABLE |= CLK_ENABLE_CAN0 | CLK_ENABLE_CAN1;
-    VOR_SYSCONFIG->PERIPHERAL_RESET &= ~(CLK_ENABLE_CAN0 | CLK_ENABLE_CAN1);
-    __NOP();
-    __NOP();
-    VOR_SYSCONFIG->PERIPHERAL_RESET |= (CLK_ENABLE_CAN0 | CLK_ENABLE_CAN1);
-
-    uint32_t* regPtr;
-    for(regPtr=(uint32_t *)VOR_CAN0; regPtr<=(uint32_t *)&VOR_CAN0->CTMR; regPtr++){
-        *regPtr = 0x0000;
-    }
-    for(regPtr=(uint32_t *)VOR_CAN1; regPtr<=(uint32_t *)&VOR_CAN1->CTMR; regPtr++){
-        *regPtr = 0x0000;
-    }
-#endif
     HAL_Can_Enable(VOR_CAN0);
     /*
     System clock = 100MHz, CAN peripheral input clock, CKI = 50MHz
@@ -84,7 +95,7 @@ void ConfigureCAN0(void)
     canConfig.CTIM_PSC   = (40UL-2UL);  //CAN PreScalar=10
     
     /*
-     Configure CAN general settings
+    Configure CAN general settings
     The CGCR is used to:
     - Enable/disable the CAN module
     - Configure the BUFFLOCK function for the message buffers 0 to 14
@@ -108,36 +119,57 @@ void ConfigureCAN0(void)
         | CAN_CGCR_DIAGEN_Msk    
         | CAN_CGCR_EIT_Msk;
 
-    /* Enable interrupt for all message buffers */
-    //canConfig.CICEN = CAN_CICEN_ICEN_Msk | CAN_CICEN_EICEN_Msk; /* Enable interrupt for all 15 buffers + errors */
-    canConfig.CICEN = (BITMASK(ALLF,14,0)<<CAN_CICEN_ICEN_Pos) ;//| CAN_CICEN_EICEN_Msk;
-    //canConfig.CICEN = 0x7FFF;
+    /**
+     * CAN Interrupt Code Enable Register (CICEN) 
+     * The CICEN register determines whether the interrupt pending flag in IPND must be translated
+     * into the Interrupt Code field of the STPND register
+     **/
+    canConfig.CICEN = CAN_CICEN_ICEN_Msk | CAN_CICEN_EICEN_Msk;
+    //canConfig.CICEN = 0x7FFF | 0x8000;
 
     /* Initialize CAN0 module with configuration and enable NVIC interrupt for CAN0 */
     HAL_Can_Setup(VOR_CAN0, &canConfig, CAN0_IRQn);
     
-    //VOR_CAN0->CIEN = (BITMASK(ALLF,14,0)<<CAN_CIEN_IEN_Pos) ;//| CAN_CIEN_EIEN_Msk;
-    VOR_CAN0->CIEN = 0x7 ; // only buffers 0 1 2 !!!
+    /** CAN Interrupt Enable Register (CIEN) 
+     * The CIEN register enables the transmit and receive interrupts of message buffers 0 through 14,
+     * and the CAN error interrupt
+     **/
+    VOR_CAN0->CIEN = BIT(0) | BIT(1) | BIT(2) | BIT(14); // bits 0,1,2 (0x7) and bit 14 (0x4000)
+
+    /* Set up global acceptance mask to only accept standard frames */
+    //HAL_Can_Setup_gMask(VOR_CAN0, HAL_Can_Make_maskBX(0x0, false, true));
+    //VOR_CAN0->GMSKB &= ~CAN_GMSKB_IDE_Msk;  // Only accept standard frames (IDE=0)
+    //HAL_Can_Setup_gMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone, 1, 1));
     
-    /* Set up global acceptance mask */
-    HAL_Can_Setup_gMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone, 1, 1));
+    /** CAN Global Mask Extension Register (GMSKX)
+     **/
+    VOR_CAN0->GMSKX = 0;
+    /** CAN Global Mask Base Register (GMSKB)
+     * The GMSKB register enables global masking for incoming identifier bits,
+     * allowing the software to globally mask the identifier bits RTR and IDE.
+     **/
+    VOR_CAN0->GMSKB = 0xFFF0;
     
     /* Set up buffer-specific mask for buffer 14 */
-    HAL_Can_Setup_bMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone, 1, 1));
+    //HAL_Can_Setup_bMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone,   1, 1));
+    VOR_CAN0->BMSKX = 0;
+    VOR_CAN0->BMSKB = 0xFFF0;
     
     /* Clear all CAN message buffers */
-    //HAL_Can_ClearBuffer((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0 , 14); // 15 ?!?
     HAL_Can_ClearAllBufferStatus();
 
+    /* Configure buffer 14 as a catch-all for any standard ID message */
+    HAL_Can_ConfigCMB_Rx(0x0, en_can_cmb_msgtype_STD11, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB14);
+    
     /* Configure receive message buffer 0 */
     /* ID 0x123, standard frame */
     HAL_Can_ConfigCMB_Rx(0x123, en_can_cmb_msgtype_STD11, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0);
 
-    hal_can_id29_or_11_t rem_req_resp_id = 0x100;
+    hal_can_id11_t rem_req_resp_id = 0x100;
     /* Configure rx msg buffer 1 */
     /* ID 0x100, Remote Request */
     HAL_Can_ConfigCMB_Rx(rem_req_resp_id, en_can_cmb_msgtype_STD11_REM, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB1);
-    /* Configure tx msg buffer 1 */
+    /* Configure tx msg buffer 2 */
     /* ID 0x100, Remote Transmit Response*/
     /* Set up buffer 2 for automatic RTR response */
     VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
@@ -166,8 +198,6 @@ void ConfigureCAN0(void)
 /**
  * @brief CAN0 Interrupt handler
  * 
- * This function handles RTR frames that require software intervention
- * (not handled by automatic RTR response buffers)
  */
 void CAN0_IRQHandler(void)
 {
@@ -178,20 +208,19 @@ void CAN0_IRQHandler(void)
     uint32_t    status_pending = VOR_CAN0->CSTPND; 
     uint32_t    irq_pending = VOR_CAN0->CIPND; 
     
-    printf("%s %lu %lu %lu\n",__FUNCTION__,irq_pending,status_pending, error_counter);
+    printf("%s %lu %lu %lu\n",__FUNCTION__,irq_pending,status_pending,error_counter);
 
     /* Clear the interrupt flag for all buffers and error*/
     //VOR_CAN0->CICLR = 0xFFFF;
 
     /* Check if buffer 0 received a message */
     if (irq_pending & 0x0001) {
-        
         /* Get the received packet from buffer 0 */
         /* NEED to review this function !!!!
          * - no difference btw remote request frame and data frame
          * - DATA0..DATA3 always copied , use dataLengthBytes ?!?!
          */
-        if ( HAL_Can_getCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0, &rxPkt) != 0) {            
+        if ( HAL_Can_getCanPktIRQ((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0, &rxPkt) != 0) {            
             return;
         }
         /* Clear the interrupt flag for buffer 0 */
@@ -210,7 +239,7 @@ void CAN0_IRQHandler(void)
         HAL_Can_sendCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB4, &respPkt);
     
     } else if (irq_pending & 0x0002) {
-        
+        /* Get the received packet from buffer 1 */        
         //VOR_CAN0->DATA0_CMB2 = 0xCACA;
         /* Clear the interrupt flag for buffer 1 */
         VOR_CAN0->CICLR = 0x0002;
@@ -226,6 +255,22 @@ void CAN0_IRQHandler(void)
         VOR_CAN0->CICLR = 0x0004;
         //VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_RX_READY;
     
+    } else if (irq_pending & 0x4000) {
+        
+        /* Get the received packet from buffer 14 */
+        if (HAL_Can_getCanPktIRQ((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB14, &rxPkt) == 0) {
+            printf("Buffer 14 received ID: 0x%X, DLC: %lu\n", 
+                    (unsigned int)rxPkt.id, rxPkt.dataLengthBytes);
+        
+            printf("Data: ");
+            for (int i = 0; i < (rxPkt.dataLengthBytes+1)/2; i++) {
+                printf("%04X ", rxPkt.data16[i]);
+            }
+            printf("\n");
+        }
+        /* Clear the interrupt flag for buffer 14 */
+        VOR_CAN0->CICLR = 0x4000;
+        VOR_CAN0->CNSTAT_CMB14 = en_can_cmb_cnstat_st_RX_READY;
     }
-    /* Handle other buffer interrupts if needed */
+    
 }
