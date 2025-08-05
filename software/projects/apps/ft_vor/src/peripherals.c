@@ -138,7 +138,7 @@ void ConfigureCAN0(void)
 
     /* Set up global acceptance mask to only accept standard frames */
     //HAL_Can_Setup_gMask(VOR_CAN0, HAL_Can_Make_maskBX(0x0, false, true));
-    //VOR_CAN0->GMSKB &= ~CAN_GMSKB_IDE_Msk;  // Only accept standard frames (IDE=0)
+    //VOR_CAN0->GMSKB &= ~CAN_GMSKB_IDE_Msk;  // Only accept standard frames (IDE=0) 
     //HAL_Can_Setup_gMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone, 1, 1));
     
     /** CAN Global Mask Extension Register (GMSKX)
@@ -148,12 +148,12 @@ void ConfigureCAN0(void)
      * The GMSKB register enables global masking for incoming identifier bits,
      * allowing the software to globally mask the identifier bits RTR and IDE.
      **/
-    VOR_CAN0->GMSKB = 0xFFF0;
+    VOR_CAN0->GMSKB = 0x0010;
     
     /* Set up buffer-specific mask for buffer 14 */
-    //HAL_Can_Setup_bMask(VOR_CAN0, HAL_Can_Make_maskBX(dontCareIDNone,   1, 1));
+    // To make buffer 14 a true catch-all, set the mask to all 0s (don't care)
     VOR_CAN0->BMSKX = 0;
-    VOR_CAN0->BMSKB = 0xFFF0;
+    VOR_CAN0->BMSKB = 0xFFF0; // 0x0010 + 0xFFE0
     
     /* Clear all CAN message buffers */
     HAL_Can_ClearAllBufferStatus();
@@ -216,10 +216,6 @@ void CAN0_IRQHandler(void)
     /* Check if buffer 0 received a message */
     if (irq_pending & 0x0001) {
         /* Get the received packet from buffer 0 */
-        /* NEED to review this function !!!!
-         * - no difference btw remote request frame and data frame
-         * - DATA0..DATA3 always copied , use dataLengthBytes ?!?!
-         */
         if ( HAL_Can_getCanPktIRQ((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0, &rxPkt) != 0) {            
             return;
         }
@@ -238,14 +234,18 @@ void CAN0_IRQHandler(void)
         /* Send the response using a free transmit buffer */
         HAL_Can_sendCanPkt((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB4, &respPkt);
     
-    } else if (irq_pending & 0x0002) {
+    } 
+    
+    if (irq_pending & 0x0002) {
         /* Get the received packet from buffer 1 */        
-        //VOR_CAN0->DATA0_CMB2 = 0xCACA;
+        
         /* Clear the interrupt flag for buffer 1 */
         VOR_CAN0->CICLR = 0x0002;
         VOR_CAN0->CNSTAT_CMB1 = en_can_cmb_cnstat_st_RX_READY;
     
-    } else if (irq_pending & 0x0004) {
+    }
+    
+    if (irq_pending & 0x0004) {
     
         VOR_CAN0->DATA0_CMB2 += 0x1111;
         VOR_CAN0->DATA1_CMB2 += 0x1111;
@@ -255,19 +255,22 @@ void CAN0_IRQHandler(void)
         VOR_CAN0->CICLR = 0x0004;
         //VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_RX_READY;
     
-    } else if (irq_pending & 0x4000) {
+    }
+    
+    if (irq_pending & 0x4000) {
         
         /* Get the received packet from buffer 14 */
         if (HAL_Can_getCanPktIRQ((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB14, &rxPkt) == 0) {
+#if 1
             printf("Buffer 14 received ID: 0x%X, DLC: %lu\n", 
                     (unsigned int)rxPkt.id, rxPkt.dataLengthBytes);
-        
             printf("Data: ");
             for (int i = 0; i < (rxPkt.dataLengthBytes+1)/2; i++) {
                 printf("%04X ", rxPkt.data16[i]);
             }
             printf("\n");
-        }
+#endif
+            }
         /* Clear the interrupt flag for buffer 14 */
         VOR_CAN0->CICLR = 0x4000;
         VOR_CAN0->CNSTAT_CMB14 = en_can_cmb_cnstat_st_RX_READY;
