@@ -1,5 +1,5 @@
 #include "board.h"
-#include "peripherals.h"
+#include "can.h"
 
 #include "va416xx_hal_canbus.h"
 /**

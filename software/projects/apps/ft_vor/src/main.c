@@ -30,7 +30,7 @@
 #include "va416xx.h"
 #include "board.h"
 #include "uart.h"
-#include "peripherals.h"
+#include "can.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
