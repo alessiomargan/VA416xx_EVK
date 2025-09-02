@@ -31,11 +31,13 @@
 #include "board.h"
 #include "uart.h"
 #include "can.h"
+#include "ads1278.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
 #include "va416xx_hal_irqrouter.h"
 #include "va416xx_hal_timer.h"
+#include "va416xx_hal_dma.h"
 #include "va416xx_debug.h"
 #include "spi_fram.h"
 
@@ -176,7 +178,8 @@ static uint8_t Initialize(void)
   VOR_PORTG->CLROUT = 1UL<<2; // PG2 output low
 
   ConfigureCAN0();
-  
+  ConfigureADS1278();
+
   // Debug prints and printf destination
   // Will route printf to a UART if RTT is not enabled
 #ifndef ENABLE_RTT
