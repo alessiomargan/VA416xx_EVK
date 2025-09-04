@@ -205,6 +205,7 @@ static uint8_t Initialize(void)
 int main(void)
 {
   static uint64_t nextSecTask_ms = 0;
+  static ads1278_data_t data;
 
   // Initialize HAL functions (clock, IO config, debug prints, etc)
   uint8_t initerrs = Initialize();
@@ -219,13 +220,14 @@ int main(void)
 
   // setup timer 0 to interrupt every 0.5 second (blinks PG5 LED)
   (void)HAL_Timer_SetupPeriodicIrqMs(BLINK_TIMER_NUM, BLINK_TIMER_MS, BLINK_TIMER_PRIO);
-
   while(1)
   {
     if(HAL_time_ms >= nextSecTask_ms){
       gSecondsCounter++;
       nextSecTask_ms += 1000;
       printf("seconds: %d\r\n", gSecondsCounter);
+      ADS1278_ReadAllChannels(&data);
+      printf("CH1: %ld\n", data.ch[0]);
     }
 
     WDFEED();
