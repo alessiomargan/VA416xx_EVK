@@ -227,7 +227,6 @@ int main(void)
       nextSecTask_ms += 1000;
       printf("seconds: %d\r\n", gSecondsCounter);
       ADS1278_ReadAllChannels(&data);
-      printf("CH1: %ld\n", data.ch[0]);
     }
 
     WDFEED();

@@ -8,12 +8,15 @@
 #define DRDY_PIN    0
 #define DRDY_PORT   PORTF
 #define CH_NUM      1
-//#define USE_DMA
+#define USE_DMA
+//#define TEST_DMA
 
 static hal_spi_handle_t hspi;
 static volatile hal_status_t spiStat;
-static volatile bool rxDmaDone;
-
+static volatile bool rxDmaDone = true;
+static volatile uint32_t missedSamples;
+static volatile uint32_t sampleCount;
+        
 static ads1278_spi_data_t spi_rx_data;  // Raw SPI data
 static ads1278_data_t processed_data;   // Processed channel data
 
@@ -26,7 +29,7 @@ void ConfigureADS1278(void) {
     hspi.spi = VOR_SPI1;
     hspi.init.blockmode = true;
     hspi.init.bmstall = false;
-    hspi.init.clkDiv = 10; //2;
+    hspi.init.clkDiv = 8;   // could be less but wires probes make clk suck
     hspi.init.loopback = false;
     hspi.init.mdlycap = false;
     // for ads1278 don't care ?!?
@@ -39,14 +42,6 @@ void ConfigureADS1278(void) {
         printf("Error: HAL_Spi_Init() status: %s\n", HAL_StatusToString(spiStat));
         return;
     }
-#ifdef USE_DMA
-    spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
-    if(spiStat != hal_status_ok)
-    {
-      printf("Error: HAL_Spi_ConfigDMA() status: %s\n", HAL_StatusToString(spiStat));
-      return;
-    }
-#endif
     // Initialize ~DRDY pin as an input interrupt to trigger the read.
     // Enable clock to GPIO bank
     // Configure as input
@@ -65,12 +60,22 @@ void ConfigureADS1278(void) {
 
 
 void PF0_IRQHandler(void) {
-    // Clear the interrupt (add this line if not already present)
-    //DRDY_PORT->  IRQ_CLR = (1 << DRDY_PIN);
 
 #ifdef USE_DMA
-    uint16_t tmp[3*2];
-    spiStat = HAL_Spi_ReceiveDMA(&hspi, tmp, 3);
+    if ( rxDmaDone ) {
+        rxDmaDone = false;
+        // !!!! DO IT EVERY TIME .... 
+        spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
+        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, 3);
+        if(spiStat != hal_status_ok) {
+            printf("Error: HAL_Spi_ReceiveDMA() status: %s\n", HAL_StatusToString(spiStat));
+        }
+    } else {
+        // This means we missed a sample because DMA wasn't ready
+        if ( ++missedSamples % 1000 == 0) {
+            printf("Warning: Missed %lu samples due to DMA not ready\n", missedSamples);
+        }
+    }
 #else
     // Receive 12 uint16_t words
     spiStat = HAL_Spi_Receive(&hspi, spi_rx_data.raw, 3, 100);
@@ -96,7 +101,11 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
         spiStat = hal_status_ok;
         // Process the raw SPI data into channel values
         ads1278_process_data(&spi_rx_data, &processed_data);
-    
+        // Consider adding a timestamp or sequence number to track data flow
+        if ( ++sampleCount % 10000 == 0) {
+            printf("Processed %lu samples, latest CH1: %ld\n", 
+                   sampleCount, processed_data.ch[0]);
+        }
     } else {
         spiStat = hal_status_rxError; // receive overrun
     }
