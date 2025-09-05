@@ -7,7 +7,7 @@
 
 #define DRDY_PIN    0
 #define DRDY_PORT   PORTF
-#define CH_NUM      1
+#define CH_NUM      4
 #define USE_DMA
 //#define TEST_DMA
 
@@ -29,14 +29,14 @@ void ConfigureADS1278(void) {
     hspi.spi = VOR_SPI1;
     hspi.init.blockmode = true;
     hspi.init.bmstall = false;
-    hspi.init.clkDiv = 8;   // could be less but wires probes make clk suck
+    hspi.init.clkDiv = 6;   // could be less but wires probes make clk suck
     hspi.init.loopback = false;
     hspi.init.mdlycap = false;
     // for ads1278 don't care ?!?
     hspi.init.mode = hal_spi_clkmode_0;
     hspi.init.ms = hal_spi_ms_master;
     hspi.init.chipSelect = 0;
-    hspi.init.wordLen = 8; //16;
+    hspi.init.wordLen = 8;  //16;
     spiStat = HAL_Spi_Init(&hspi);
     if(spiStat != hal_status_ok) {
         printf("Error: HAL_Spi_Init() status: %s\n", HAL_StatusToString(spiStat));
@@ -66,7 +66,7 @@ void PF0_IRQHandler(void) {
         rxDmaDone = false;
         // !!!! DO IT EVERY TIME .... 
         spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
-        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, 3);
+        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, 3*CH_NUM);
         if(spiStat != hal_status_ok) {
             printf("Error: HAL_Spi_ReceiveDMA() status: %s\n", HAL_StatusToString(spiStat));
         }
@@ -78,7 +78,7 @@ void PF0_IRQHandler(void) {
     }
 #else
     // Receive 12 uint16_t words
-    spiStat = HAL_Spi_Receive(&hspi, spi_rx_data.raw, 3, 100);
+    spiStat = HAL_Spi_Receive(&hspi, spi_rx_data.raw, 3*CH_NUM, 100);
     if(spiStat != hal_status_ok) {
         printf("Error: HAL_Spi_Receive() status: %s\n", HAL_StatusToString(spiStat));
         return;
@@ -91,11 +91,10 @@ void PF0_IRQHandler(void) {
 #endif
 }
 
+// declared weak 
 void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
 {
-    if(hdl != &hspi) {
-        return;
-    }
+    if(hdl != &hspi) { return; }
     
     if(hdl->state != hal_spi_state_error) {
         spiStat = hal_status_ok;
@@ -103,8 +102,10 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
         ads1278_process_data(&spi_rx_data, &processed_data);
         // Consider adding a timestamp or sequence number to track data flow
         if ( ++sampleCount % 10000 == 0) {
-            printf("Processed %lu samples, latest CH1: %ld\n", 
-                   sampleCount, processed_data.ch[0]);
+            printf("%lu #samples, latest : %ld %ld %ld %ld\n", 
+                   sampleCount,
+                   processed_data.ch[0], processed_data.ch[1],
+                   processed_data.ch[2], processed_data.ch[3]);
         }
     } else {
         spiStat = hal_status_rxError; // receive overrun
