@@ -87,7 +87,7 @@ void PF0_IRQHandler(void) {
         Pin_set(DBG_PORT, DBG_PIN, !rxDmaDone);
         // !!!! DO IT EVERY TIME ....
         spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
-        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, 3*ADC_CH_NUM);
+        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, SPI_WORDLEN_X_CH*ADC_CH_NUM);
         if(spiStat != hal_status_ok) {
             printf("Error: HAL_Spi_ReceiveDMA() status: %s\n", HAL_StatusToString(spiStat));
         }
