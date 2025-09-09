@@ -5,6 +5,8 @@
 #include "va416xx_hal_spi.h"
 #include "va416xx_hal_dma.h"
 
+#include <inttypes.h>
+
 #define DRDY_PIN    0
 #define DRDY_PORT   PORTF
 #define DBG_PIN     10
@@ -26,11 +28,12 @@ static volatile bool rxDmaDone = true;
 static volatile uint32_t missedSamples;
 static volatile uint32_t sampleCount;
         
-static ads1278_spi_data_t spi_rx_data;      // raw SPI data
-static ads1278_data_t adc_raw_data[ADC_RAW_BUFF_SIZE];   // adc raw counts
-static ads1278_data_t adc_raw_test;   // adc raw counts
+static ads1278_spi_data_t   spi_rx_data;                            // raw SPI data
+static ads1278_raw_data_t   adc_raw_data[ADC_RAW_BUFF_SIZE] = {0};  // adc raw counts
+//static ads1278_data_t       adc_data[ADC_RAW_BUFF_SIZE] = {0};      // adc values
+static ads1278_raw_data_t   adc_raw_test;   // adc raw counts
 static uint16_t adc_raw_idx = 0;                // adc raw last idx 
-static int64_t adc_raw_sum[ADC_CH_NUM];
+static int32_t  adc_raw_sum[ADC_CH_NUM] = {0};
 static const uint8_t adc_ch_num = ADC_CH_NUM;
 
 static inline void Pin_off(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_PORT->CLROUT = 1UL<<pin; }
@@ -49,7 +52,7 @@ void ConfigureADS1278(void) {
     hspi.spi = VOR_SPI1;
     hspi.init.blockmode = true;
     hspi.init.bmstall = false;
-    hspi.init.clkDiv = 6;   // could be less but wires probes make clk suck
+    hspi.init.clkDiv = 10;   // could be less but wires probes make clk suck
     hspi.init.loopback = false;
     hspi.init.mdlycap = false;
     // for ads1278 don't care ?!?
@@ -112,41 +115,45 @@ void PF0_IRQHandler(void) {
 #endif
 }
 
-// declared weak 
+// declared weak in va416xx_hal_spi.c
+// Used for DMA transfers, called by DMA RX channel DONE interrupt
 void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
 {
     if(hdl != &hspi) { return; }
     
-    if(hdl->state != hal_spi_state_error) {
+    if(hdl->state == hal_spi_state_error) {
 
-        spiStat = hal_status_ok;
-        // START Protect data sum calculation from interruptions
-        //__disable_irq();
-        //
-        //#pragma GCC unroll adc_ch_num
-        //for (int i = 0; i < adc_ch_num; i++) {
-        //    adc_raw_sum[i] -= adc_raw_data[adc_raw_idx].ch[i];
-        //}
-        // Process the raw SPI data into channel values
-        //ads1278_process_data(&spi_rx_data, &adc_raw_data[adc_raw_idx]);
-        ads1278_process_data(&spi_rx_data, &adc_raw_test);
-        
-        //printf("%ld \r\n", adc_raw_test.ch[0]);
-
-        //
-        //#pragma GCC unroll adc_ch_num
-        //for (int i = 0; i < adc_ch_num; i++) {
-        //    adc_raw_sum[i] += adc_raw_data[adc_raw_idx].ch[i];
-        //}
-        //
-        adc_raw_idx = (adc_raw_idx+1) % ADC_RAW_BUFF_SIZE;
-        // END Protect data sum calculation from interruptions
-        //__enable_irq();
-
-    } else {
         spiStat = hal_status_rxError; // receive overrun
+        goto exit_cb;
     }
     
+    spiStat = hal_status_ok;
+#if 1
+    // START Protect data sum calculation from interruptions
+    __disable_irq();
+    //
+    #pragma GCC unroll adc_ch_num
+    for (int i = 0; i < adc_ch_num; i++) {
+        adc_raw_sum[i] -= adc_raw_data[adc_raw_idx].ch[i];
+    }
+    // Process the raw SPI data into channel values
+    ads1278_process_data(&spi_rx_data, &adc_raw_data[adc_raw_idx]);
+    //ads1278_process_data(&spi_rx_data, &adc_raw_test);
+    sampleCount++;
+    //
+    #pragma GCC unroll adc_ch_num
+    for (int i = 0; i < adc_ch_num; i++) {
+        adc_raw_sum[i] += adc_raw_data[adc_raw_idx].ch[i];
+    }
+    //
+    adc_raw_idx = (adc_raw_idx+1) % ADC_RAW_BUFF_SIZE;
+    // END Protect data sum calculation from interruptions
+    __enable_irq();
+#else
+    ads1278_process_data(&spi_rx_data, &adc_raw_test);
+#endif
+
+exit_cb :    
     rxDmaDone = true;
     Pin_set(DBG_PORT, DBG_PIN, !rxDmaDone);
         
@@ -155,22 +162,28 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
 // New function to allow external access to the data
 void ADS1278_ReadAllChannels(ads1278_data_t* data) {
     
-    //__disable_irq();
+#if 1
+    __disable_irq();
     // Copy the processed data to the provided structure
     #pragma GCC unroll adc_ch_num
     for (int i = 0; i < adc_ch_num; i++) {
         // divide by SMPL_NUM using shift x / 2^n == x >> n
 	    // SMPL_NUM 64 = 2^6 ==> x >> 6
-	    //data->ch[i] = adc_raw_sum[i] >> (MAX_SMPL_POW2-1);
-        data->ch[i] = adc_raw_sum[i] / 512;
+	    data->ch[i] = (adc_raw_sum[i] >> MAX_SMPL_POW2) * V_TICK;  // Equivalent to division by 512
     }
+    //printf("latest means: %u %ld %ld\n", 
+    //        sampleCount, adc_raw_data[adc_raw_idx].ch[0], data->ch[0]);
+    printf("%u samples - means %d mV\n", 
+            sampleCount, (uint32_t)(data->ch[0]*1000));
+    sampleCount = 0;
+    __enable_irq();
+#else
+    for (int i = 0; i < adc_ch_num; i++) {
+        data->ch[i] = adc_raw_test.ch[i];  
+    }
+    printf("latest : %ld\n", data->ch[0]);
+#endif
     
-    printf("latest means: %ld %ld %ld %ld\n", 
-            //data.ch[0], data->ch[1], data->ch[2], data->ch[3]);
-            //adc_raw_idx, adc_raw_data[adc_raw_idx].ch[0], adc_raw_sum[0], data->ch[0]);
-            adc_raw_idx, adc_raw_test.ch[0], adc_raw_sum[0], data->ch[0]);
-
-
-    //__enable_irq();
+   
 
 }

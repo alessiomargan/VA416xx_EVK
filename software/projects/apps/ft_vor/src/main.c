@@ -205,7 +205,6 @@ static uint8_t Initialize(void)
 int main(void)
 {
   static uint64_t nextSecTask_ms = 0;
-  static ads1278_data_t data;
 
   // Initialize HAL functions (clock, IO config, debug prints, etc)
   uint8_t initerrs = Initialize();
@@ -226,7 +225,7 @@ int main(void)
       gSecondsCounter++;
       nextSecTask_ms += 1000;
       //printf("seconds: %d\r\n", gSecondsCounter);
-      ADS1278_ReadAllChannels(&data);
+      //ADS1278_ReadAllChannels(&data);
     }
 
     WDFEED();
@@ -242,7 +241,9 @@ int main(void)
  ******************************************************************************/
 void TIM0_IRQHandler(void)
 {
+  static ads1278_data_t data;
   EVK_LED_PORT->TOGOUT = 1<<EVK_LED_PIN;
+  ADS1278_ReadAllChannels(&data);
 }
 
 /*******************************************************************************
