@@ -7,9 +7,18 @@
 
 #define DRDY_PIN    0
 #define DRDY_PORT   PORTF
-#define CH_NUM      4
+#define DBG_PIN     10
+#define DBG_PORT    PORTF
+
 #define USE_DMA
 //#define TEST_DMA
+
+// Define dummy system calls to suppress warnings
+void _close(void)  {}
+void _lseek(void)  {}
+void _read(void)   {}
+void _fstat(void)  {}
+void _isatty(void) {}
 
 static hal_spi_handle_t hspi;
 static volatile hal_status_t spiStat;
@@ -17,14 +26,25 @@ static volatile bool rxDmaDone = true;
 static volatile uint32_t missedSamples;
 static volatile uint32_t sampleCount;
         
-static ads1278_spi_data_t spi_rx_data;  // Raw SPI data
-static ads1278_data_t processed_data;   // Processed channel data
+static ads1278_spi_data_t spi_rx_data;      // raw SPI data
+static ads1278_data_t adc_raw_data[ADC_RAW_BUFF_SIZE];   // adc raw counts
+static ads1278_data_t adc_raw_test;   // adc raw counts
+static uint16_t adc_raw_idx = 0;                // adc raw last idx 
+static int64_t adc_raw_sum[ADC_CH_NUM];
+static const uint8_t adc_ch_num = ADC_CH_NUM;
+
+static inline void Pin_off(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_PORT->CLROUT = 1UL<<pin; }
+static inline void Pin_on (VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_PORT->SETOUT = 1UL<<pin; }
+static inline void Pin_tgl(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_PORT->TOGOUT = 1UL<<pin; }
+static inline void Pin_set(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin, bool val) {
+    val ? (GPIO_PORT->SETOUT = 1UL<<pin) : (GPIO_PORT->CLROUT = 1UL<<pin);
+}
 
 void ConfigureADS1278(void) {
     
     HAL_DMA_Init(NULL, false, false, false);
     
-    // config SPI0
+    // config SPI
     HAL_UNLOCK(&hspi);
     hspi.spi = VOR_SPI1;
     hspi.init.blockmode = true;
@@ -43,10 +63,8 @@ void ConfigureADS1278(void) {
         return;
     }
     // Initialize ~DRDY pin as an input interrupt to trigger the read.
-    // Enable clock to GPIO bank
     // Configure as input
     DRDY_PORT->DIR &= ~(1 << DRDY_PIN);
-    // Enable pull-up (if needed - ADS1278 DRDY is typically open-drain)
     // Configure falling edge interrupt
     DRDY_PORT->IRQ_SEN  &= ~(1 << DRDY_PIN);  // Edge sensitive
     DRDY_PORT->IRQ_EDGE &= ~(1 << DRDY_PIN);  // Falling edge
@@ -61,12 +79,15 @@ void ConfigureADS1278(void) {
 
 void PF0_IRQHandler(void) {
 
+    //Pin_tgl(DBG_PORT, DBG_PIN);
+        
 #ifdef USE_DMA
     if ( rxDmaDone ) {
         rxDmaDone = false;
-        // !!!! DO IT EVERY TIME .... 
+        Pin_set(DBG_PORT, DBG_PIN, !rxDmaDone);
+        // !!!! DO IT EVERY TIME ....
         spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
-        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, 3*CH_NUM);
+        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, 3*ADC_CH_NUM);
         if(spiStat != hal_status_ok) {
             printf("Error: HAL_Spi_ReceiveDMA() status: %s\n", HAL_StatusToString(spiStat));
         }
@@ -78,7 +99,7 @@ void PF0_IRQHandler(void) {
     }
 #else
     // Receive 12 uint16_t words
-    spiStat = HAL_Spi_Receive(&hspi, spi_rx_data.raw, 3*CH_NUM, 100);
+    spiStat = HAL_Spi_Receive(&hspi, spi_rx_data.raw, 3*ADC_CH_NUM, 100);
     if(spiStat != hal_status_ok) {
         printf("Error: HAL_Spi_Receive() status: %s\n", HAL_StatusToString(spiStat));
         return;
@@ -97,28 +118,59 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
     if(hdl != &hspi) { return; }
     
     if(hdl->state != hal_spi_state_error) {
+
         spiStat = hal_status_ok;
+        // START Protect data sum calculation from interruptions
+        //__disable_irq();
+        //
+        //#pragma GCC unroll adc_ch_num
+        //for (int i = 0; i < adc_ch_num; i++) {
+        //    adc_raw_sum[i] -= adc_raw_data[adc_raw_idx].ch[i];
+        //}
         // Process the raw SPI data into channel values
-        ads1278_process_data(&spi_rx_data, &processed_data);
-        // Consider adding a timestamp or sequence number to track data flow
-        if ( ++sampleCount % 10000 == 0) {
-            printf("%lu #samples, latest : %ld %ld %ld %ld\n", 
-                   sampleCount,
-                   processed_data.ch[0], processed_data.ch[1],
-                   processed_data.ch[2], processed_data.ch[3]);
-        }
+        //ads1278_process_data(&spi_rx_data, &adc_raw_data[adc_raw_idx]);
+        ads1278_process_data(&spi_rx_data, &adc_raw_test);
+        
+        //printf("%ld \r\n", adc_raw_test.ch[0]);
+
+        //
+        //#pragma GCC unroll adc_ch_num
+        //for (int i = 0; i < adc_ch_num; i++) {
+        //    adc_raw_sum[i] += adc_raw_data[adc_raw_idx].ch[i];
+        //}
+        //
+        adc_raw_idx = (adc_raw_idx+1) % ADC_RAW_BUFF_SIZE;
+        // END Protect data sum calculation from interruptions
+        //__enable_irq();
+
     } else {
         spiStat = hal_status_rxError; // receive overrun
     }
- 
+    
     rxDmaDone = true;
-
+    Pin_set(DBG_PORT, DBG_PIN, !rxDmaDone);
+        
 }
 
 // New function to allow external access to the data
 void ADS1278_ReadAllChannels(ads1278_data_t* data) {
+    
+    //__disable_irq();
     // Copy the processed data to the provided structure
-    for (int i = 0; i < 8; i++) {
-        data->ch[i] = processed_data.ch[i];
+    #pragma GCC unroll adc_ch_num
+    for (int i = 0; i < adc_ch_num; i++) {
+        // divide by SMPL_NUM using shift x / 2^n == x >> n
+	    // SMPL_NUM 64 = 2^6 ==> x >> 6
+	    //data->ch[i] = adc_raw_sum[i] >> (MAX_SMPL_POW2-1);
+        data->ch[i] = adc_raw_sum[i] / 512;
     }
+    
+    printf("latest means: %ld %ld %ld %ld\n", 
+            //data.ch[0], data->ch[1], data->ch[2], data->ch[3]);
+            //adc_raw_idx, adc_raw_data[adc_raw_idx].ch[0], adc_raw_sum[0], data->ch[0]);
+            adc_raw_idx, adc_raw_test.ch[0], adc_raw_sum[0], data->ch[0]);
+
+
+    //__enable_irq();
+
 }

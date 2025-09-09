@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+#define MAX_SMPL_POW2		9 	// 2^9 = 512
+#define MAX_SMPL_NUM		(1 << MAX_SMPL_POW2)  	// 1<<(9-1) = 512
+#define ADC_RAW_BUFF_SIZE   MAX_SMPL_NUM
+#define ADC_CH_NUM          4
+
+
 // SPI receive buffer: 12 uint16_t values (1.5 words per channel × 8 channels)
 typedef struct {
     //uint16_t raw[12];  // Raw SPI data (12 words total)
@@ -11,12 +17,12 @@ typedef struct {
 
 // Final data structure with 24-bit values
 typedef struct {
-    int32_t ch[8];     // Processed 24-bit values (sign-extended to 32-bit)
+    int32_t ch[ADC_CH_NUM];     // Processed 24-bit values (sign-extended to 32-bit)
 } ads1278_data_t;
 
 // Function to convert raw SPI data to channel values
 static inline void ads1278_process_data(const ads1278_spi_data_t* raw_data, ads1278_data_t* proc_data) {
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < ADC_CH_NUM; i++) {
         // Each channel uses 3 consecutive bytes
         uint8_t byte0 = raw_data->raw[i*3];     // MSB (bits 23-16)
         uint8_t byte1 = raw_data->raw[i*3 + 1]; // Middle byte (bits 15-8)
