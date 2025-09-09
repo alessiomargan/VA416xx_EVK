@@ -7,7 +7,6 @@
 
 #define DRDY_PIN    0
 #define DRDY_PORT   PORTF
-#define CH_NUM      4
 #define USE_DMA
 //#define TEST_DMA
 
@@ -66,7 +65,7 @@ void PF0_IRQHandler(void) {
         rxDmaDone = false;
         // !!!! DO IT EVERY TIME .... 
         spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
-        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, 3*CH_NUM);
+        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, SPI_WORDLEN_X_CH*ADC_CH_NUM);
         if(spiStat != hal_status_ok) {
             printf("Error: HAL_Spi_ReceiveDMA() status: %s\n", HAL_StatusToString(spiStat));
         }
@@ -102,10 +101,7 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
         ads1278_process_data(&spi_rx_data, &processed_data);
         // Consider adding a timestamp or sequence number to track data flow
         if ( ++sampleCount % 10000 == 0) {
-            printf("%lu #samples, latest : %ld %ld %ld %ld\n", 
-                   sampleCount,
-                   processed_data.ch[0], processed_data.ch[1],
-                   processed_data.ch[2], processed_data.ch[3]);
+            for (int i = 0; i < ADC_CH_NUM; i++) { printf("%ld\r\n", processed_data.ch[i]); }
         }
     } else {
         spiStat = hal_status_rxError; // receive overrun
@@ -118,7 +114,7 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
 // New function to allow external access to the data
 void ADS1278_ReadAllChannels(ads1278_data_t* data) {
     // Copy the processed data to the provided structure
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < ADC_CH_NUM; i++) {
         data->ch[i] = processed_data.ch[i];
     }
 }

@@ -82,7 +82,7 @@ void ConfigureCAN0(void)
     
     HAL_Can_Enable(VOR_CAN0);
     /*
-    System clock = 100MHz, CAN peripheral input clock, CKI = 50MHz
+    System clock = 100MHz, CAN peripheral input clock APB1 (System clock /2 ) => CKI = 50MHz
     50MHz / (PSC * (1+TSEG1+TSEG2))
     50MHz / (PSC * (1+3+6))
     */
