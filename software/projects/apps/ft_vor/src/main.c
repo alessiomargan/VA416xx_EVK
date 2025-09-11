@@ -46,8 +46,13 @@
 /*****************************************************************************/
 
 #define BLINK_TIMER_NUM  (0)
-#define BLINK_TIMER_MS   (200)
+#define BLINK_TIMER_MS   (250)
 #define BLINK_TIMER_PRIO (7)
+
+#define PRINT_TIMER_NUM  (1)
+#define PRINT_TIMER_MS   (100)
+#define PRINT_TIMER_PRIO (6)
+
 
 #define RESET_PERIPHERALS() do{                   \
   VOR_SYSCONFIG->PERIPHERAL_RESET = 0x00000000UL; \
@@ -218,7 +223,11 @@ int main(void)
   printf("\r\nHello World!\r\n");
 
   // setup timer 0 to interrupt every 0.5 second (blinks PG5 LED)
-  (void)HAL_Timer_SetupPeriodicIrqMs(BLINK_TIMER_NUM, BLINK_TIMER_MS, BLINK_TIMER_PRIO);
+  HAL_Timer_SetupPeriodicIrqMs(BLINK_TIMER_NUM, BLINK_TIMER_MS, BLINK_TIMER_PRIO);
+  
+  // setup timer 1 to interrupt every 0.1 second
+  HAL_Timer_SetupPeriodicIrqMs(PRINT_TIMER_NUM, PRINT_TIMER_MS, PRINT_TIMER_PRIO);
+  
   while(1)
   {
     if(HAL_time_ms >= nextSecTask_ms){
@@ -241,9 +250,18 @@ int main(void)
  ******************************************************************************/
 void TIM0_IRQHandler(void)
 {
-  static ads1278_data_t data;
   EVK_LED_PORT->TOGOUT = 1<<EVK_LED_PIN;
-  ADS1278_ReadAllChannels(&data);
+}
+
+/*******************************************************************************
+ **
+ ** @brief  Timer1 IRQ Handler - print
+ **
+ ******************************************************************************/
+void TIM1_IRQHandler(void)
+{
+  static ads1278_adc_data_t data;
+  ADS1278_getADCs(&data);
 }
 
 /*******************************************************************************

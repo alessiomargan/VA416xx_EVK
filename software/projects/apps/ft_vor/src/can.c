@@ -1,7 +1,9 @@
 #include "board.h"
 #include "can.h"
+#include "ads1278.h"
 
 #include "va416xx_hal_canbus.h"
+
 /**
  * @brief Redefine some HAL can functions 
  * 
@@ -158,25 +160,25 @@ void ConfigureCAN0(void)
     /* Clear all CAN message buffers */
     HAL_Can_ClearAllBufferStatus();
 
-    /* Configure buffer 14 as a catch-all for any standard ID message */
+    /* Configure Rx msg 14 as a catch-all for any standard ID message */
     HAL_Can_ConfigCMB_Rx(0x0, en_can_cmb_msgtype_STD11, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB14);
     
-    /* Configure receive message buffer 0 */
+    /* Configure Rx msg buffer 0 */
     /* ID 0x123, standard frame */
     HAL_Can_ConfigCMB_Rx(0x123, en_can_cmb_msgtype_STD11, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0);
 
-    hal_can_id11_t rem_req_resp_id = 0x100;
     /* Configure rx msg buffer 1 */
     /* ID 0x100, Remote Request */
+    hal_can_id11_t rem_req_resp_id = 0x100;
     HAL_Can_ConfigCMB_Rx(rem_req_resp_id, en_can_cmb_msgtype_STD11_REM, (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB1);
     /* Configure tx msg buffer 2 */
     /* ID 0x100, Remote Transmit Response*/
     /* Set up buffer 2 for automatic RTR response */
     VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
-    VOR_CAN0->DATA0_CMB2 = 0xAA55;
-    VOR_CAN0->DATA1_CMB2 = 0xBB66;
-    VOR_CAN0->DATA2_CMB2 = 0xCC77;
-    VOR_CAN0->DATA3_CMB2 = 0xDD88;
+    //VOR_CAN0->DATA0_CMB2 = 0xAA55;
+    //VOR_CAN0->DATA1_CMB2 = 0xBB66;
+    //VOR_CAN0->DATA2_CMB2 = 0xCC77;
+    //VOR_CAN0->DATA3_CMB2 = 0xDD88;
     VOR_CAN0->ID1_CMB2 = BITMASK_AND_SHIFTL(rem_req_resp_id,10,0,5); // | CAN_CMB_ID1_STD_RTR_Msk;
     VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_TX_RTR
                         | 8<<CAN_CNSTAT_CMB0_DLC_Pos 
@@ -238,6 +240,12 @@ void CAN0_IRQHandler(void)
     
     if (irq_pending & 0x0002) {
         /* Get the received packet from buffer 1 */        
+        static ads1278_adc_data_t data;
+        ADS1278_getADCs(&data);
+        VOR_CAN0->DATA0_CMB2 = (uint32_t)(data.volts[0]*1000);
+        VOR_CAN0->DATA1_CMB2 = data.volts[0];
+        VOR_CAN0->DATA2_CMB2 = data.volts[0];
+        VOR_CAN0->DATA3_CMB2 = data.volts[0];
         
         /* Clear the interrupt flag for buffer 1 */
         VOR_CAN0->CICLR = 0x0002;
@@ -247,10 +255,10 @@ void CAN0_IRQHandler(void)
     
     if (irq_pending & 0x0004) {
     
-        VOR_CAN0->DATA0_CMB2 += 0x1111;
-        VOR_CAN0->DATA1_CMB2 += 0x1111;
-        VOR_CAN0->DATA2_CMB2 += 0x1111;
-        VOR_CAN0->DATA3_CMB2 += 0x1111;
+        //VOR_CAN0->DATA0_CMB2 += 0x1111;
+        //VOR_CAN0->DATA1_CMB2 += 0x1111;
+        //VOR_CAN0->DATA2_CMB2 += 0x1111;
+        //VOR_CAN0->DATA3_CMB2 += 0x1111;
         /* Clear the interrupt flag for buffer 2 */
         VOR_CAN0->CICLR = 0x0004;
         //VOR_CAN0->CNSTAT_CMB2 = en_can_cmb_cnstat_st_RX_READY;
@@ -258,7 +266,6 @@ void CAN0_IRQHandler(void)
     }
     
     if (irq_pending & 0x4000) {
-        
         /* Get the received packet from buffer 14 */
         if (HAL_Can_getCanPktIRQ((can_cmb_t*)&VOR_CAN0->CNSTAT_CMB14, &rxPkt) == 0) {
 #if 1
@@ -270,7 +277,7 @@ void CAN0_IRQHandler(void)
             }
             printf("\n");
 #endif
-            }
+        }
         /* Clear the interrupt flag for buffer 14 */
         VOR_CAN0->CICLR = 0x4000;
         VOR_CAN0->CNSTAT_CMB14 = en_can_cmb_cnstat_st_RX_READY;

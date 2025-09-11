@@ -12,9 +12,6 @@
 #define DBG_PIN     10
 #define DBG_PORT    PORTF
 
-#define USE_DMA
-//#define TEST_DMA
-
 // Define dummy system calls to suppress warnings
 void _close(void)  {}
 void _lseek(void)  {}
@@ -28,10 +25,9 @@ static volatile bool rxDmaDone = true;
 static volatile uint32_t missedSamples;
 static volatile uint32_t sampleCount;
         
-static ads1278_spi_data_t   spi_rx_data;                            // raw SPI data
-static ads1278_raw_data_t   adc_raw_data[ADC_RAW_BUFF_SIZE] = {0};  // adc raw counts
-//static ads1278_data_t       adc_data[ADC_RAW_BUFF_SIZE] = {0};      // adc values
-static ads1278_raw_data_t   adc_raw_test;   // adc raw counts
+static ads1278_spi_data_t   spi_rx_data;                   // raw SPI data
+static ads1278_raw_data_t   adc_raw_data[MAX_RAW_SMPL] = {0};  // adc raw counts
+static ads1278_adc_data_t   adc_raw_test;   // adc raw counts
 static uint16_t adc_raw_idx = 0;                // adc raw last idx 
 static int32_t  adc_raw_sum[ADC_CH_NUM] = {0};
 static const uint8_t adc_ch_num = ADC_CH_NUM;
@@ -65,6 +61,8 @@ void ConfigureADS1278(void) {
         printf("Error: HAL_Spi_Init() status: %s\n", HAL_StatusToString(spiStat));
         return;
     }
+    //spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
+        
     // Initialize ~DRDY pin as an input interrupt to trigger the read.
     // Configure as input
     DRDY_PORT->DIR &= ~(1 << DRDY_PIN);
@@ -84,13 +82,47 @@ void PF0_IRQHandler(void) {
 
     //Pin_tgl(DBG_PORT, DBG_PIN);
         
-#ifdef USE_DMA
     if ( rxDmaDone ) {
         rxDmaDone = false;
         Pin_set(DBG_PORT, DBG_PIN, !rxDmaDone);
+#if 1
         // !!!! DO IT EVERY TIME ....
         spiStat = HAL_Spi_ConfigDMA(&hspi, 0, 1);
-        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.raw, SPI_WORDLEN_X_CH*ADC_CH_NUM);
+#else
+        static volatile uint8_t txchannel, rxchannel;
+        HAL_LOCK(&hspi);
+        if ( spiStat == hal_status_busy ) {
+            printf("Error: HAL_LOCK(spi) status: %s\n", HAL_StatusToString(spiStat));
+            return;
+        }
+        txchannel = 0;
+        rxchannel = 1;
+        hspi.txdma_ch = txchannel;
+        hspi.rxdma_ch = rxchannel;
+        stc_dma_control_blk_t* dma_blk = (stc_dma_control_blk_t*)VOR_DMA->CTRL_BASE_PTR;
+        VOR_DMA->CHNL_ENABLE_CLR = (1UL << hspi.txdma_ch) | (1UL << hspi.rxdma_ch);
+        VOR_DMA->CHNL_PRI_ALT_CLR = (1UL << txchannel) | (1UL << rxchannel);
+        /* Tx channel setup */
+        dma_blk->pri[txchannel].ctrl_raw = 0; // zero out ctrl
+        dma_blk->pri[txchannel].ctrl.cycle_ctrl = DMA_CHNL_CFG_CYCLE_CTRL_BASIC;
+        dma_blk->pri[txchannel].ctrl.src_size = DMA_CHNL_CFG_SIZE_WORD;
+        dma_blk->pri[txchannel].dst = (uint32_t)(hspi.spi->DATA);
+        dma_blk->pri[txchannel].ctrl.dst_size = DMA_CHNL_CFG_SIZE_WORD;
+        dma_blk->pri[txchannel].ctrl.dst_inc = DMA_CHNL_CFG_INC_NONE; // dest ptr increment
+        dma_blk->pri[txchannel].ctrl.r_power = DMA_CHNL_CFG_R_POWER_EACH; // rearbitrate every 4 transfers
+        /* Rx channel setup */
+        dma_blk->pri[rxchannel].ctrl_raw = 0; // zero out ctrl
+        dma_blk->pri[rxchannel].ctrl.cycle_ctrl = DMA_CHNL_CFG_CYCLE_CTRL_BASIC;
+        dma_blk->pri[rxchannel].src = (uint32_t)(hspi.spi->DATA);
+        dma_blk->pri[rxchannel].ctrl.src_inc = DMA_CHNL_CFG_INC_NONE; // source ptr increment
+        dma_blk->pri[rxchannel].ctrl.r_power = DMA_CHNL_CFG_R_POWER_EACH; // rearbitrate each
+        /* Setup IRQ router */
+        VOR_SYSCONFIG->PERIPHERAL_CLK_ENABLE |= CLK_ENABLE_IRQ;
+        /* Register DMA RX done callback */
+        HAL_DMA_RegDoneCallback(rxchannel, (void (*)(void *))HAL_Spi_Rx_Dma_Callback, &hspi);
+        HAL_UNLOCK(&hspi);
+#endif        
+        spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.spiword, SPI_WORDLEN_X_CH*ADC_CH_NUM);
         if(spiStat != hal_status_ok) {
             printf("Error: HAL_Spi_ReceiveDMA() status: %s\n", HAL_StatusToString(spiStat));
         }
@@ -100,19 +132,6 @@ void PF0_IRQHandler(void) {
             printf("Warning: Missed %lu samples due to DMA not ready\n", missedSamples);
         }
     }
-#else
-    // Receive 12 uint16_t words
-    spiStat = HAL_Spi_Receive(&hspi, spi_rx_data.raw, 3*ADC_CH_NUM, 100);
-    if(spiStat != hal_status_ok) {
-        printf("Error: HAL_Spi_Receive() status: %s\n", HAL_StatusToString(spiStat));
-        return;
-    }
-    // Process the raw SPI data into channel values
-    ads1278_process_data(&spi_rx_data, &processed_data);    
-    // Now you can use processed_data.ch[0] through processed_data.ch[7]
-    // Example: print channel 1 value
-    //printf("CH1: %ld\n", processed_data.ch[0]);
-#endif
 }
 
 // declared weak in va416xx_hal_spi.c
@@ -122,13 +141,11 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
     if(hdl != &hspi) { return; }
     
     if(hdl->state == hal_spi_state_error) {
-
         spiStat = hal_status_rxError; // receive overrun
         goto exit_cb;
     }
     
     spiStat = hal_status_ok;
-#if 1
     // START Protect data sum calculation from interruptions
     __disable_irq();
     //
@@ -146,12 +163,9 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
         adc_raw_sum[i] += adc_raw_data[adc_raw_idx].ch[i];
     }
     //
-    adc_raw_idx = (adc_raw_idx+1) % ADC_RAW_BUFF_SIZE;
+    adc_raw_idx = (adc_raw_idx+1) % MAX_RAW_SMPL;
     // END Protect data sum calculation from interruptions
     __enable_irq();
-#else
-    ads1278_process_data(&spi_rx_data, &adc_raw_test);
-#endif
 
 exit_cb :    
     rxDmaDone = true;
@@ -160,30 +174,22 @@ exit_cb :
 }
 
 // New function to allow external access to the data
-void ADS1278_ReadAllChannels(ads1278_data_t* data) {
+void ADS1278_getADCs(ads1278_adc_data_t* data) {
     
-#if 1
+    uint32_t cnt;
     __disable_irq();
     // Copy the processed data to the provided structure
     #pragma GCC unroll adc_ch_num
     for (int i = 0; i < adc_ch_num; i++) {
-        // divide by SMPL_NUM using shift x / 2^n == x >> n
-	    // SMPL_NUM 64 = 2^6 ==> x >> 6
-	    data->ch[i] = (adc_raw_sum[i] >> MAX_SMPL_POW2) * V_TICK;  // Equivalent to division by 512
+        // use shift operator to divide
+        data->volts[i] = (adc_raw_sum[i] >> MAX_SMPL_POW2) * V_TICK;
     }
+    cnt = sampleCount;
+    sampleCount = 0;
+    __enable_irq();
     //printf("latest means: %u %ld %ld\n", 
     //        sampleCount, adc_raw_data[adc_raw_idx].ch[0], data->ch[0]);
     printf("%u samples - means %d mV\n", 
-            sampleCount, (uint32_t)(data->ch[0]*1000));
-    sampleCount = 0;
-    __enable_irq();
-#else
-    for (int i = 0; i < adc_ch_num; i++) {
-        data->ch[i] = adc_raw_test.ch[i];  
-    }
-    printf("latest : %ld\n", data->ch[0]);
-#endif
+            cnt, (uint32_t)(data->volts[0]*1000));
     
-   
-
 }
