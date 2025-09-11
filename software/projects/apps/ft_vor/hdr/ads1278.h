@@ -8,6 +8,8 @@
 #define MAX_RAW_SMPL		(1 << MAX_SMPL_POW2)  	// 1<<8 = 256
 #define ADC_CH_NUM          8
 #define V_TICK              0.0000003f
+#define mV_TICK             0.0003f
+#define uV_TICK             0.3f
 
 
 // SPI receive buffer: 12 uint16_t values (1.5 words per channel × 8 channels)
@@ -22,8 +24,8 @@ typedef struct {
 } ads1278_raw_data_t;
 
 typedef struct {
-    float volts[ADC_CH_NUM];     // Voltage values
-    uint32_t timestamp;          // Optional: add timestamp for data tracking
+    int32_t     microVolts[ADC_CH_NUM];     // Voltage values
+    uint32_t    timestamp;          // Optional: add timestamp for data tracking
 } ads1278_adc_data_t;
 
 // Function to convert raw SPI data to channel values

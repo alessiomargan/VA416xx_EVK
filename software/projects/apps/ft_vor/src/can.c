@@ -242,10 +242,10 @@ void CAN0_IRQHandler(void)
         /* Get the received packet from buffer 1 */        
         static ads1278_adc_data_t data;
         ADS1278_getADCs(&data);
-        VOR_CAN0->DATA0_CMB2 = (uint32_t)(data.volts[0]*1000);
-        VOR_CAN0->DATA1_CMB2 = data.volts[0];
-        VOR_CAN0->DATA2_CMB2 = data.volts[0];
-        VOR_CAN0->DATA3_CMB2 = data.volts[0];
+        VOR_CAN0->DATA0_CMB2 = data.microVolts[0] >> 16;    // MSB Upper 16 bits
+        VOR_CAN0->DATA1_CMB2 = data.microVolts[0] ;
+        VOR_CAN0->DATA2_CMB2 = data.microVolts[1] >> 16;    // MSB Upper 16 bits
+        VOR_CAN0->DATA3_CMB2 = data.microVolts[1];
         
         /* Clear the interrupt flag for buffer 1 */
         VOR_CAN0->CICLR = 0x0002;

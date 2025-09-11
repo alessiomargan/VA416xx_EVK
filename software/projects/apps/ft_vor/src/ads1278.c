@@ -182,14 +182,14 @@ void ADS1278_getADCs(ads1278_adc_data_t* data) {
     #pragma GCC unroll adc_ch_num
     for (int i = 0; i < adc_ch_num; i++) {
         // use shift operator to divide
-        data->volts[i] = (adc_raw_sum[i] >> MAX_SMPL_POW2) * V_TICK;
+        data->microVolts[i] = (adc_raw_sum[i] >> MAX_SMPL_POW2) * uV_TICK;
     }
     cnt = sampleCount;
     sampleCount = 0;
     __enable_irq();
     //printf("latest means: %u %ld %ld\n", 
     //        sampleCount, adc_raw_data[adc_raw_idx].ch[0], data->ch[0]);
-    printf("%u samples - means %d mV\n", 
-            cnt, (uint32_t)(data->volts[0]*1000));
+    printf("%u samples - means %d uV\n", 
+            cnt, (data->microVolts[0]));
     
 }
