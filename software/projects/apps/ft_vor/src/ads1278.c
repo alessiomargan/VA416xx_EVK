@@ -4,6 +4,7 @@
 #include "va416xx_hal.h"
 #include "va416xx_hal_spi.h"
 #include "va416xx_hal_dma.h"
+#include "va416xx_hal_canbus.h"
 
 #include <inttypes.h>
 
@@ -163,6 +164,13 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
         adc_raw_sum[i] += adc_raw_data[adc_raw_idx].ch[i];
     }
     //
+    can_cmb_t * can_cmb_ch01 = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB1;
+    can_cmb_ch01->DATA0 = (int32_t)((adc_raw_sum[0] >> MAX_SMPL_POW2) * uV_TICK) >> 16;    // MSB Upper 16 bits
+    can_cmb_ch01->DATA1 = (int32_t)((adc_raw_sum[0] >> MAX_SMPL_POW2) * uV_TICK);
+    can_cmb_ch01->DATA2 = (int32_t)((adc_raw_sum[1] >> MAX_SMPL_POW2) * uV_TICK) >> 16;    // MSB Upper 16 bits
+    can_cmb_ch01->DATA3 = (int32_t)((adc_raw_sum[1] >> MAX_SMPL_POW2) * uV_TICK);
+    
+    // next adc_raw_data buffer idx
     adc_raw_idx = (adc_raw_idx+1) % MAX_RAW_SMPL;
     // END Protect data sum calculation from interruptions
     __enable_irq();

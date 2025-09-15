@@ -260,8 +260,8 @@ void TIM0_IRQHandler(void)
  ******************************************************************************/
 void TIM1_IRQHandler(void)
 {
-  static ads1278_adc_data_t data;
-  ADS1278_getADCs(&data);
+  //static ads1278_adc_data_t data;
+  //ADS1278_getADCs(&data);
 }
 
 /*******************************************************************************
