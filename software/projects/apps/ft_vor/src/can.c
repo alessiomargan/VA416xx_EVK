@@ -5,11 +5,11 @@
 #include "va416xx_hal_canbus.h"
 
 // CMB14 Rx msg buffer for catch-all any standard ID message
-static volatile can_cmb_t * const can_cmb_14 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB14;
+static can_cmb_t * const can_cmb_14 = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB14;
 // CMB13 Tx msg buffer for standard ID message
-static volatile can_cmb_t * const can_cmb_13 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB13;
+static can_cmb_t * const can_cmb_13 = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB13;
 // CMB12 Tx msg buffer for standard ID message
-static volatile can_cmb_t * const can_cmb_12 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB12;
+static can_cmb_t * const can_cmb_12 = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB12;
 
 
 // CMB0 Rx msg buffer Remote Transmission Request
@@ -35,7 +35,8 @@ static volatile can_cmb_t * const can_cmb_7 = (volatile can_cmb_t*)&VOR_CAN0->CN
 
 
 // Array of buffer pointers for RTR responses
-static volatile can_cmb_t * const map[] = {can_cmb_1, can_cmb_3, can_cmb_5, can_cmb_7};
+volatile can_cmb_t * const cmb_RTR_resp[] = {can_cmb_1, can_cmb_3, can_cmb_5, can_cmb_7};
+
 
 /**
  * @brief Redefine some HAL can functions 
@@ -80,7 +81,7 @@ static inline void HAL_Can_Enable(VOR_CAN_Type *myCAN)
     }
 }
 
-static inline uint32_t HAL_Can_getCanPktIRQ(can_cmb_t *can_cmb, can_pkt_t *myPkt)
+static inline uint32_t HAL_Can_getCanPktIRQ(volatile can_cmb_t *can_cmb, can_pkt_t *myPkt)
 {
     myPkt->id = can_cmb->ID1 >> 5;
     
@@ -88,18 +89,32 @@ static inline uint32_t HAL_Can_getCanPktIRQ(can_cmb_t *can_cmb, can_pkt_t *myPkt
     if(myPkt->dataLengthBytes>8){
         return 1; //illegal data length??
     }
-
     //excess bytes beyond dataLengthBytes is junk but not cleared here 
     myPkt->data16[0]=can_cmb->DATA0;
     myPkt->data16[1]=can_cmb->DATA1;
     myPkt->data16[2]=can_cmb->DATA2;
     myPkt->data16[3]=can_cmb->DATA3;
-
     myPkt->timestamp16=can_cmb->TSTP;
 
     can_cmb->CNSTAT = en_can_cmb_cnstat_st_TX_NOT_ACTIVE; //clr state to RX_NOT_ACTIVE, wipes DLC/PRI too
     
     return 0;
+}
+
+static inline void HAL_Can_ConfigCMBs_RTR(volatile can_cmb_t * can_cmb_rtr, 
+    volatile can_cmb_t * can_cmb_rtr_resp, 
+    const hal_can_id29_or_11_t rtr_id)
+{
+    //HAL_Can_ConfigCMB_Rx(rtr_id_0, en_can_cmb_msgtype_STD11_REM, (can_cmb_t *)can_cmb_0);
+    can_cmb_rtr->CNSTAT = en_can_cmb_cnstat_st_RX_NOT_ACTIVE;
+    can_cmb_rtr->ID1 = BITMASK_AND_SHIFTL(rtr_id,10,0,5) | CAN_CMB_ID1_STD_RTR_Msk;
+    can_cmb_rtr->CNSTAT = en_can_cmb_cnstat_st_RX_READY;
+    
+    can_cmb_rtr_resp->CNSTAT = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
+    can_cmb_rtr_resp->ID1 = BITMASK_AND_SHIFTL(rtr_id,10,0,5);
+    can_cmb_rtr_resp->CNSTAT = en_can_cmb_cnstat_st_TX_RTR 
+                                | 8<<CAN_CNSTAT_CMB0_DLC_Pos 
+                                | 0<<CAN_CNSTAT_CMB0_PRI_Pos;
 }
 
 
@@ -111,7 +126,6 @@ static inline uint32_t HAL_Can_getCanPktIRQ(can_cmb_t *can_cmb, can_pkt_t *myPkt
  */
 void ConfigureCAN0(void)
 {
-    hal_can_id29_or_11_t dontCareIDNone=0x0;//care about all=must be exact match
     /* CAN configuration structure */
     can_config_t canConfig;
     
@@ -201,31 +215,19 @@ void ConfigureCAN0(void)
     /* ID 0x123, standard frame */
     //HAL_Can_ConfigCMB_Rx(0x123, en_can_cmb_msgtype_STD11, can_cmb_13);
 
-    /* Configure rx msg buffer 0 Remote Transmit Response */
-    HAL_Can_ConfigCMB_Rx(rtr_id_0, en_can_cmb_msgtype_STD11_REM, can_cmb_0);
-    /* Configure tx msg buffer 1 for automatic RTR response */
-    can_cmb_1->CNSTAT = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
-    can_cmb_1->ID1 = BITMASK_AND_SHIFTL(rtr_id_0,10,0,5); // | CAN_CMB_ID1_STD_RTR_Msk;
-    can_cmb_1->CNSTAT = en_can_cmb_cnstat_st_TX_RTR | 8<<CAN_CNSTAT_CMB0_DLC_Pos | 0<<CAN_CNSTAT_CMB0_PRI_Pos;
-    /* Configure rx msg buffer 2 Remote Transmit Response */
-    HAL_Can_ConfigCMB_Rx(rtr_id_1, en_can_cmb_msgtype_STD11_REM, can_cmb_2);
-    /* Configure tx msg buffer 3 for automatic RTR response */
-    can_cmb_3->CNSTAT = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
-    can_cmb_3->ID1 = BITMASK_AND_SHIFTL(rtr_id_1,10,0,5); // | CAN_CMB_ID1_STD_RTR_Msk;
-    can_cmb_3->CNSTAT = en_can_cmb_cnstat_st_TX_RTR | 8<<CAN_CNSTAT_CMB0_DLC_Pos | 0<<CAN_CNSTAT_CMB0_PRI_Pos;
-    /* Configure rx msg buffer 4 Remote Transmit Response */
-    HAL_Can_ConfigCMB_Rx(rtr_id_2, en_can_cmb_msgtype_STD11_REM, can_cmb_4);
-    /* Configure tx msg buffer 5 for automatic RTR response */
-    can_cmb_5->CNSTAT = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
-    can_cmb_5->ID1 = BITMASK_AND_SHIFTL(rtr_id_2,10,0,5); // | CAN_CMB_ID1_STD_RTR_Msk;
-    can_cmb_5->CNSTAT = en_can_cmb_cnstat_st_TX_RTR | 8<<CAN_CNSTAT_CMB0_DLC_Pos | 0<<CAN_CNSTAT_CMB0_PRI_Pos;
-    /* Configure rx msg buffer 6 Remote Transmit Response */
-    HAL_Can_ConfigCMB_Rx(rtr_id_3, en_can_cmb_msgtype_STD11_REM, can_cmb_6);
-    /* Configure tx msg buffer 7 for automatic RTR response */
-    can_cmb_7->CNSTAT = en_can_cmb_cnstat_st_TX_NOT_ACTIVE;
-    can_cmb_7->ID1 = BITMASK_AND_SHIFTL(rtr_id_3,10,0,5); // | CAN_CMB_ID1_STD_RTR_Msk;
-    can_cmb_7->CNSTAT = en_can_cmb_cnstat_st_TX_RTR | 8<<CAN_CNSTAT_CMB0_DLC_Pos | 0<<CAN_CNSTAT_CMB0_PRI_Pos;
-
+    /* Configure rx CMB0 for Remote Transmission Request - standard frame */
+    /* Configure tx CMB1 for Remote Transmission Request Response - standard frame */
+    HAL_Can_ConfigCMBs_RTR(can_cmb_0, can_cmb_1, rtr_id_0);
+    /* Configure rx CMB2 for Remote Transmission Request - standard frame */
+    /* Configure tx CMB3 for Remote Transmission Request Response - standard frame */
+    HAL_Can_ConfigCMBs_RTR(can_cmb_2, can_cmb_3, rtr_id_1);
+    /* Configure rx CMB4 for Remote Transmission Request - standard frame */
+    /* Configure tx CMB5 for Remote Transmission Request Response - standard frame */
+    HAL_Can_ConfigCMBs_RTR(can_cmb_4, can_cmb_5, rtr_id_2);
+    /* Configure rx CMB6 for Remote Transmission Request - standard frame */
+    /* Configure tx CMB7 for Remote Transmission Request Response - standard frame */
+    HAL_Can_ConfigCMBs_RTR(can_cmb_6, can_cmb_7, rtr_id_3);
+    
 #if 0
     can_pkt_t testPkt;
     testPkt.msgType = en_can_cmb_msgtype_STD11;
@@ -255,24 +257,12 @@ void CAN0_IRQHandler(void)
     
     printf("%s %lu %lu %lu\n",__FUNCTION__,irq_pending,status_pending,error_counter);
 
-    /* Clear the interrupt flag for all buffers and error*/
-    //VOR_CAN0->CICLR = 0xFFFF;
+    /* CAN message buffers are configured for automatic transmission
+       after reception of a Remote Transmission Request (RTR)
+       No need if IRQ
+    */
 
-    /* Check if buffer 0 received a message */
-    if (irq_pending & 0x0001) {
-        /* Clear the interrupt flag for buffer 1 */
-        VOR_CAN0->CICLR = 0x0001;
-        //can_cmb_0->CNSTAT = en_can_cmb_cnstat_st_RX_READY;
-    }
-    
-    if (irq_pending & 0x0002) {
-        /* Clear the interrupt flag for buffer 2 */
-        VOR_CAN0->CICLR = 0x0002;
-        //can_cmb_1->CNSTAT = en_can_cmb_cnstat_st_RX_READY;
-    
-    }
- 
-    // cmb 14
+    // CMB14
     if (irq_pending & 0x4000) {
         /* Clear the interrupt flag for buffer 14 */
         VOR_CAN0->CICLR = 0x4000;

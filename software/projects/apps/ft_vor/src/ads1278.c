@@ -26,10 +26,10 @@ static volatile bool rxDmaDone = true;
 static volatile uint32_t missedSamples;
 static volatile uint32_t sampleCount;
         
-static ads1278_spi_data_t   spi_rx_data;                   // raw SPI data
-static ads1278_raw_data_t   adc_raw_data[MAX_RAW_SMPL] = {0};  // adc raw counts
-static ads1278_adc_data_t   adc_raw_test;   // adc raw counts
-static uint16_t adc_raw_idx = 0;                // adc raw last idx 
+static ads1278_spi_data_t   spi_rx_data;                        // raw SPI data
+static ads1278_raw_data_t   adc_raw_data[MAX_RAW_SMPL] = {0};   // adc raw counts
+static ads1278_adc_data_t   adc_raw_test;                       // adc raw counts
+static uint16_t adc_raw_idx = 0;                                // adc raw last idx 
 static int32_t  adc_raw_sum[ADC_CH_NUM] = {0};
 static const uint8_t adc_ch_num = ADC_CH_NUM;
 
@@ -39,6 +39,24 @@ static inline void Pin_tgl(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_
 static inline void Pin_set(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin, bool val) {
     val ? (GPIO_PORT->SETOUT = 1UL<<pin) : (GPIO_PORT->CLROUT = 1UL<<pin);
 }
+
+extern can_cmb_t * cmb_RTR_resp[]; 
+//
+static inline void set_cmb_data(void) {
+
+    static const uint8_t rtr_resp_num = 4;
+    assert((rtr_resp_num*2)==ADC_CH_NUM);
+    can_cmb_t * can_cmb;
+    #pragma GCC unroll rtr_resp_num
+    for (int i = 0; i < 4; i++) {
+        can_cmb = cmb_RTR_resp[i];
+        can_cmb->DATA0 = (int32_t)((adc_raw_sum[i*2] >> MAX_SMPL_POW2) * uV_TICK) >> 16;    // MSB Upper 16 bits
+        can_cmb->DATA1 = (int32_t)((adc_raw_sum[i*2] >> MAX_SMPL_POW2) * uV_TICK);
+        can_cmb->DATA2 = (int32_t)((adc_raw_sum[(i*2)+1] >> MAX_SMPL_POW2) * uV_TICK) >> 16;    // MSB Upper 16 bits
+        can_cmb->DATA3 = (int32_t)((adc_raw_sum[(i*2)+1] >> MAX_SMPL_POW2) * uV_TICK);
+    }
+}
+
 
 void ConfigureADS1278(void) {
     
@@ -164,12 +182,7 @@ void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
         adc_raw_sum[i] += adc_raw_data[adc_raw_idx].ch[i];
     }
     //
-    can_cmb_t * can_cmb_ch01 = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB1;
-    can_cmb_ch01->DATA0 = (int32_t)((adc_raw_sum[0] >> MAX_SMPL_POW2) * uV_TICK) >> 16;    // MSB Upper 16 bits
-    can_cmb_ch01->DATA1 = (int32_t)((adc_raw_sum[0] >> MAX_SMPL_POW2) * uV_TICK);
-    can_cmb_ch01->DATA2 = (int32_t)((adc_raw_sum[1] >> MAX_SMPL_POW2) * uV_TICK) >> 16;    // MSB Upper 16 bits
-    can_cmb_ch01->DATA3 = (int32_t)((adc_raw_sum[1] >> MAX_SMPL_POW2) * uV_TICK);
-    
+    set_cmb_data();
     // next adc_raw_data buffer idx
     adc_raw_idx = (adc_raw_idx+1) % MAX_RAW_SMPL;
     // END Protect data sum calculation from interruptions
