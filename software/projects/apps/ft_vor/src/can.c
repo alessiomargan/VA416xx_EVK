@@ -1,3 +1,30 @@
+/**
+ * @file can.c
+ * @brief CAN Bus Driver Implementation for VA416xx
+ *
+ * This file implements the CAN bus interface for the VA416xx microcontroller,
+ * with support for Remote Transmission Request (RTR) handling and automatic
+ * response to RTR frames. It provides communication with external systems
+ * to transfer ADC data over the CAN network.
+ *
+ * @author Alessio Margan
+ * @date September 24, 2025
+ *
+ * @version 1.0
+ *
+ * @copyright Copyright (c) 2025 IIT
+ *
+ * @details
+ * The driver implements:
+ * - CAN bus initialization and configuration
+ * - RTR message handling with automatic responses
+ * - Standard frame support with 11-bit identifiers
+ * - Message buffer management for efficient communication
+ * - Integration with the ADS1278 ADC driver for data transfer
+ *
+ * @note This implementation requires the VA416xx HAL CANBUS driver
+ */
+
 #include "board.h"
 #include "can.h"
 #include "ads1278.h"
@@ -39,7 +66,7 @@ volatile can_cmb_t * const cmb_RTR_resp[] = {can_cmb_1, can_cmb_3, can_cmb_5, ca
 
 
 /**
- * @brief Redefine some HAL can functions 
+ * @brief Redefine some HAL Can functions 
  * 
  */
 

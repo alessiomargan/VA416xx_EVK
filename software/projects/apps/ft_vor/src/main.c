@@ -41,6 +41,14 @@
 #include "va416xx_debug.h"
 #include "spi_fram.h"
 
+// Define dummy system calls to suppress warnings
+void _close(void)  {}
+void _lseek(void)  {}
+void _read(void)   {}
+void _fstat(void)  {}
+void _isatty(void) {}
+
+
 /*****************************************************************************/
 /* Local pre-processor symbols/macros ('#define')                            */
 /*****************************************************************************/

@@ -1,3 +1,31 @@
+/**
+ * @file ads1278.c
+ * @brief ADS1278 ADC Driver Implementation with DMA and Ring Buffer
+ *
+ * This file implements the interface to the ADS1278 8-channel, 24-bit
+ * delta-sigma ADC with SPI communication and DMA-based data acquisition.
+ * The driver provides efficient ring buffer management with continuous 
+ * averaging of the sampled data for noise reduction.
+ *
+ * @author Alessio Margan
+ * @date September 24, 2025
+ *
+ * @version 1.0
+ *
+ * @copyright Copyright (c) 2025 IIT
+ *
+ * @details
+ * The driver implements:
+ * - SPI communication with the ADS1278 ADC
+ * - DMA-based data acquisition triggered by DRDY falling edge
+ * - 256-sample ring buffer with running sum for efficient averaging
+ * - Automatic CAN message buffer updates for RTR responses
+ * - Voltage conversion with configurable scaling factors
+ * - Debug pin for oscilloscope monitoring of DMA transfers
+ *
+ * @note This implementation requires the VA416xx HAL SPI, DMA, and CAN drivers
+ */
+
 #include "board.h"
 #include "ads1278.h"
 
@@ -12,13 +40,6 @@
 #define DRDY_PORT   PORTF
 #define DBG_PIN     10
 #define DBG_PORT    PORTF
-
-// Define dummy system calls to suppress warnings
-void _close(void)  {}
-void _lseek(void)  {}
-void _read(void)   {}
-void _fstat(void)  {}
-void _isatty(void) {}
 
 static hal_spi_handle_t hspi;
 static volatile hal_status_t spiStat;
@@ -48,7 +69,7 @@ static inline void set_cmb_data(void) {
     assert((rtr_resp_num*2)==ADC_CH_NUM);
     can_cmb_t * can_cmb;
     #pragma GCC unroll rtr_resp_num
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < rtr_resp_num; i++) {
         can_cmb = cmb_RTR_resp[i];
         can_cmb->DATA0 = (int32_t)((adc_raw_sum[i*2] >> MAX_SMPL_POW2) * uV_TICK) >> 16;    // MSB Upper 16 bits
         can_cmb->DATA1 = (int32_t)((adc_raw_sum[i*2] >> MAX_SMPL_POW2) * uV_TICK);
@@ -90,7 +111,7 @@ void ConfigureADS1278(void) {
     DRDY_PORT->IRQ_EDGE &= ~(1 << DRDY_PIN);  // Falling edge
     DRDY_PORT->IRQ_EVT  &= ~(1 << DRDY_PIN);
     DRDY_PORT->IRQ_ENB  |= (1 << DRDY_PIN);
-    // Enable NVIC interrupt for GPIO Bank B
+    // Enable NVIC interrupt for GPIO Bank F
     NVIC_EnableIRQ(PORTF0_IRQn);
     NVIC_SetPriority(PORTF0_IRQn, 3);  // Set appropriate priority
 
@@ -194,7 +215,7 @@ exit_cb :
         
 }
 
-// New function to allow external access to the data
+// function to allow external access to the data
 void ADS1278_getADCs(ads1278_adc_data_t* data) {
     
     uint32_t cnt;

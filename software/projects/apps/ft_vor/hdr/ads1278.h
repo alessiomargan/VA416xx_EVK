@@ -1,3 +1,22 @@
+/**
+ * @file ads1278.h
+ * @brief ADS1278 ADC Driver Interface with DMA and Ring Buffer
+ *
+ * This file defines the interface to the ADS1278 8-channel, 24-bit
+ * delta-sigma ADC with SPI communication and DMA-based data acquisition.
+ * The driver provides efficient ring buffer management with continuous 
+ * averaging of the sampled data for noise reduction.
+ *
+ * @author Alessio Margan
+ * @date September 24, 2025
+ *
+ * @version 1.0
+ *
+ * @copyright Copyright (c) 2025 IIT
+ *
+ * @note This implementation requires the VA416xx HAL SPI, DMA, and CAN drivers
+ */
+
 #ifndef __ADS1278_H__
 #define __ADS1278_H__
 
