@@ -114,9 +114,22 @@ add_subdirectory(apps/freertos_blinky/src)
 add_subdirectory(apps/demo/src)
 add_subdirectory(apps/ft_vor/src)
 
+# Modify your build_target function
 function(build_target target src)
-	add_executable(${target} "${${src}}" "${COMMON_SRC}")
-	add_dependencies(${target} loader eraser)
+    add_executable(${target} "${${src}}" "${COMMON_SRC}")
+    
+    # For ft_vor, create a target-specific build info generator
+    if("${target}" STREQUAL "ft_vor")
+        add_custom_target(
+            ${target}_build_info
+            COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_build_info.sh ${CMAKE_CURRENT_SOURCE_DIR}/apps/${target}
+            COMMENT "Generating build information for ${target}..."
+            VERBATIM
+        )
+        add_dependencies(${target} ${target}_build_info)
+    endif()
+    
+    add_dependencies(${target} loader eraser)
 	target_include_directories(${target} PUBLIC
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/apps/${target}/hdr>
   )

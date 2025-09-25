@@ -32,6 +32,7 @@
 #include "uart.h"
 #include "can.h"
 #include "ads1278.h"
+#include "build_info.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
@@ -229,7 +230,8 @@ int main(void)
   /* will print to UART0 on PG0/PG1 at 115k baud 8n1
   ** or to RTT terminal if 'ENABLE_RTT' defined in board.h */
   printf("\r\nHello World!\r\n");
-
+  print_build_info();
+  
   // setup timer 0 to interrupt every 0.5 second (blinks PG5 LED)
   HAL_Timer_SetupPeriodicIrqMs(BLINK_TIMER_NUM, BLINK_TIMER_MS, BLINK_TIMER_PRIO);
   
@@ -268,8 +270,8 @@ void TIM0_IRQHandler(void)
  ******************************************************************************/
 void TIM1_IRQHandler(void)
 {
-  //static ads1278_adc_data_t data;
-  //ADS1278_getADCs(&data);
+  static ads1278_adc_data_t data;
+  ADS1278_getADCs(&data);
 }
 
 /*******************************************************************************
