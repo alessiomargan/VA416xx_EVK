@@ -212,7 +212,7 @@
                 "monitor reset 0",
                 "monitor halt",
                 "set *((unsigned int *) 0x40010010) = 0x00000001",
-                "load ./build/blinky.elf",
+                "load ./build/ft_vor.elf",
                 "set *((unsigned int *) 0x40010010) = 0x00000000",
                 "load ./build/loader.elf"
             ],

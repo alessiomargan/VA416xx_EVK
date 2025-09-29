@@ -32,7 +32,6 @@
 #include "uart.h"
 #include "can.h"
 #include "ads1278.h"
-#include "build_info.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
@@ -41,6 +40,10 @@
 #include "va416xx_hal_dma.h"
 #include "va416xx_debug.h"
 #include "spi_fram.h"
+
+#define BUILD_INFO_IMPLEMENTATION
+#include "build_info.h"
+
 
 // Define dummy system calls to suppress warnings
 void _close(void)  {}
