@@ -22,18 +22,19 @@
 
 #include <stdint.h>
 
-#define SPI_WORDLEN_X_CH    3
-#define MAX_SMPL_POW2		8 	// 2^8 = 256
+#define SPI_WORDLEN         (8u)
+#define SPI_WORDS_X_CH      (3u)
+#define MAX_SMPL_POW2		(8u) 	// 2^8 = 256
 #define MAX_RAW_SMPL		(1 << MAX_SMPL_POW2)  	// 1<<8 = 256
-#define ADC_CH_NUM          8
-#define V_TICK              0.0000003f
-#define mV_TICK             0.0003f
-#define uV_TICK             0.3f
+#define ADC_CH_NUM          (8u)
+#define V_TICK              (0.0000003f)
+#define mV_TICK             (0.0003f)
+#define uV_TICK             (0.3f)
 
 
 // SPI receive buffer: 12 uint16_t values (1.5 words per channel × 8 channels)
 typedef struct {
-    uint8_t spiword[SPI_WORDLEN_X_CH*ADC_CH_NUM];    // Raw SPI data (24 words total)
+    uint8_t spiword[SPI_WORDS_X_CH*ADC_CH_NUM];    // Raw SPI data (24 words total)
 } ads1278_spi_data_t;
 
 // Final data structure with both raw and voltage values

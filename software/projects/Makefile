@@ -30,6 +30,9 @@ blinky:
 ft_vor:
 	@make -C build ft_vor
 
+ft_vor_verbose:
+	@make -C build VERBOSE=1 ft_vor
+
 freertos_blinky:
 	@make -C build freertos_blinky
 
