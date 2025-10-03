@@ -147,7 +147,7 @@ static void EnableWatchdog(void)
  ******************************************************************************/
 static uint8_t Initialize(void)
 {
-  hal_status_t clkgen_status = hal_status_ok;
+  hal_status_t status = hal_status_ok;
   uint8_t initerrs = 0;
 
   RESET_PERIPHERALS();
@@ -158,13 +158,18 @@ static uint8_t Initialize(void)
 #endif
 
   // Configure CLKGEN
-  clkgen_status = HAL_Clkgen_PLL(CLK_CTRL0_XTAL_N_PLL2P5X);
-  //clkgen_status = HAL_Clkgen_Init(CLK_CFG_X_OSC_PLL80);
+  status = HAL_Clkgen_PLL(CLK_CTRL0_XTAL_N_PLL2P5X);
+  //status = HAL_Clkgen_Init(CLK_CFG_X_OSC_PLL80);
+  // clkgen report (most likely fail is PLL failed to lock, if no external clk)
+  if(status != hal_status_ok) {
+    initerrs++;
+    dbgprintln("CLKGEN status: %s", HAL_StatusToString(status));
+  }
+  dbgprintln("sysclk: %ld\n", SystemCoreClock);
 
   // Init HAL
-  hal_status_t status = HAL_Init();
-  if(status != hal_status_ok)
-  {
+  status = HAL_Init();
+  if(status != hal_status_ok) {
     initerrs++;
   }
 
@@ -185,8 +190,7 @@ static uint8_t Initialize(void)
 
   // Configure IO
   status = HAL_Iocfg_Init(&ioPinCfgArr[0]);
-  if(status != hal_status_ok)
-  {
+  if(status != hal_status_ok) {
     initerrs++;
   }
 
@@ -202,15 +206,7 @@ static uint8_t Initialize(void)
 #ifndef ENABLE_RTT
   DBG_SetStdioOutput(en_stdio_uart0);
 #endif
-
-  // clkgen report (most likely fail is PLL failed to lock, if no external clk)
-  if(clkgen_status != hal_status_ok)
-  {
-    initerrs++;
-    dbgprintln("CLKGEN status: %s", HAL_StatusToString(clkgen_status));
-  }
-  dbgprintln("sysclk: %ld\n", SystemCoreClock);
-
+  
   return initerrs;
 }
 

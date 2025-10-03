@@ -167,8 +167,10 @@ void ConfigureCAN0(void)
     canConfig.CTIM_SJW   = (1UL-1UL);  //1 time quanta
     //Configure CAN timing for 500 kbps 
     //canConfig.CTIM_PSC   = (10UL-2UL);  //CAN PreScalar=10
+    //Configure CAN timing for 250 kbps 
+    canConfig.CTIM_PSC   = (20UL-2UL);  //CAN PreScalar=20
     //Configure CAN timing for 125 kbps 
-    canConfig.CTIM_PSC   = (40UL-2UL);  //CAN PreScalar=10
+    //canConfig.CTIM_PSC   = (40UL-2UL);  //CAN PreScalar=40
     
     /*
     Configure CAN general settings
