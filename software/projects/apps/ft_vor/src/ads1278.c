@@ -28,6 +28,7 @@
 
 #include "board.h"
 #include "ads1278.h"
+#include "hal_utils.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_spi.h"
@@ -41,8 +42,10 @@
 
 #define DRDY_PIN    0
 #define DRDY_PORT   PORTF
-#define DBG_PIN     10
-#define DBG_PORT    PORTF
+
+
+calib_t calMat[10];
+float   tempVec[12][12];
 
 static hal_spi_handle_t hspi;
 static volatile hal_status_t spiStat;
@@ -57,12 +60,6 @@ static uint16_t adc_raw_idx = 0;                                // adc raw last 
 static int32_t  adc_raw_sum[ADC_CH_NUM] = {0};
 static const uint8_t adc_ch_num = ADC_CH_NUM;
 
-static inline void Pin_off(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_PORT->CLROUT = 1UL<<pin; }
-static inline void Pin_on (VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_PORT->SETOUT = 1UL<<pin; }
-static inline void Pin_tgl(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin) { GPIO_PORT->TOGOUT = 1UL<<pin; }
-static inline void Pin_set(VOR_GPIO_Type * const GPIO_PORT, uint8_t pin, bool val) {
-    val ? (GPIO_PORT->SETOUT = 1UL<<pin) : (GPIO_PORT->CLROUT = 1UL<<pin);
-}
 
 extern can_cmb_t * cmb_RTR_resp[]; 
 //
@@ -159,7 +156,7 @@ void PF0_IRQHandler(void) {
 #if defined(USE_DMA) || defined(USE_IRQ)
     if ( rxDmaDone ) {
         rxDmaDone = false;
-        Pin_set(DBG_PORT, DBG_PIN, !rxDmaDone);
+        Pin_set(DBG_PORT, DBG1_PIN, !rxDmaDone);
 #if defined(USE_DMA)
         HAL_Spi_ConfigDMA(&hspi, 0, 1);
         spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.spiword, SPI_WORDS_X_CH*ADC_CH_NUM);
@@ -177,33 +174,32 @@ void PF0_IRQHandler(void) {
         }
     }
 #else
-    Pin_on(DBG_PORT, DBG_PIN);
+    Pin_on(DBG_PORT, DBG1_PIN);
     spiStat = HAL_Spi_Receive(&hspi, spi_rx_data.spiword, SPI_WORDLEN_X_CH*ADC_CH_NUM, 0);
     if(spiStat != hal_status_ok) {
         printf("Error: HAL_Spi_Receive() status: %s\n", HAL_StatusToString(spiStat));
     }
     process_spi_data();
-    Pin_off(DBG_PORT, DBG_PIN);
+    Pin_off(DBG_PORT, DBG1_PIN);
 #endif
 }
 
 // declared weak in va416xx_hal_spi.c
 // Used for DMA transfers, called by DMA RX channel DONE interrupt
-void HAL_Spi_Cmplt_Callback(hal_spi_handle_t* hdl)
+void HAL_Spi1_Cmplt_Callback(hal_spi_handle_t* const hspi)
 {
-    if(hdl != &hspi) { return; }
-    
-    if(hdl->state == hal_spi_state_error) {
+    if(hspi->state == hal_spi_state_error) {
         spiStat = hal_status_rxError; // receive overrun
         goto exit_cb;
     }
     
     spiStat = hal_status_ok;
+    // Process the received raw data and copy to CAN buffers
     process_spi_data();
 
 exit_cb :    
     rxDmaDone = true;
-    Pin_set(DBG_PORT, DBG_PIN, !rxDmaDone);
+    Pin_set(DBG_PORT, DBG1_PIN, !rxDmaDone);
         
 }
 

@@ -834,6 +834,10 @@ hal_status_t HAL_Spi_TransmitReceive(hal_spi_handle_t* const hspi, void* txbuf, 
             if((txcount == txtotal) && bmstop)
             {
               HAL_SPI_SEND_BMSTOP(hspi);
+              // VA416XX_Errata_1.7 ?!?
+              //if( hspi->init.blockmode ) {
+              //  hspi->spi->DATA = SPI_DATA_BMSTART_BMSTOP_Msk | SPI_DATA_BMSKIPDATA_Msk;
+              //}
             }
           }
           if(hspi->spi->STATUS & SPI_STATUS_RNE_Msk)

@@ -14,7 +14,7 @@
  *
  * @copyright Copyright (c) 2025 IIT
  *
- * @note This implementation requires the VA416xx HAL SPI, DMA, and CAN drivers
+ * @note This implementation requires the VA416xx HAL SPI and CAN drivers
  */
 
 #ifndef __ADS1278_H__
@@ -47,6 +47,12 @@ typedef struct {
     int32_t     microVolts[ADC_CH_NUM];     // Voltage values
     uint32_t    timestamp;          // Optional: add timestamp for data tracking
 } ads1278_adc_data_t;
+
+typedef struct {
+	uint32_t	_signature_;
+	float		matrix[12][6];
+} calib_t;
+
 
 // Function to convert raw SPI data to channel values
 static inline void ads1278_process_data(const ads1278_spi_data_t* raw_data, ads1278_raw_data_t* proc_data) {

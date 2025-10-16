@@ -26,7 +26,9 @@
       "peb1_va416xx_evk.h": "c",
       "va416xx_hal_timer.h": "c",
       "stdio.h": "c",
-      "stdint.h": "c"
+      "stdint.h": "c",
+      "hal_utils.h": "c",
+      "ads1278.h": "c"
     },
     "cortex-debug.registerUseNaturalFormat": false,
     "cortex-debug.variableUseNaturalFormat": false

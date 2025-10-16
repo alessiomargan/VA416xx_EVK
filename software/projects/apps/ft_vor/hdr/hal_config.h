@@ -52,7 +52,7 @@
 #define __HAL_SPI_MODULE_ENABLED
 //#define __HAL_SPI0_ISR_ENABLED
 #define __HAL_SPI1_ISR_ENABLED
-//#define __HAL_SPI2_ISR_ENABLED
+#define __HAL_SPI2_ISR_ENABLED
 //#define __HAL_SPI3_ISR_ENABLED
 
 // remove I2C interrupt handlers from build if not using

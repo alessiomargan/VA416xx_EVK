@@ -32,6 +32,7 @@
 #include "uart.h"
 #include "can.h"
 #include "ads1278.h"
+#include "afe11612.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
@@ -200,7 +201,8 @@ static uint8_t Initialize(void)
 
   ConfigureCAN0();
   ConfigureADS1278();
-
+  ConfigureAFE11612();
+  
   // Debug prints and printf destination
   // Will route printf to a UART if RTT is not enabled
 #ifndef ENABLE_RTT
@@ -243,7 +245,7 @@ int main(void)
       gSecondsCounter++;
       nextSecTask_ms += 1000;
       //printf("seconds: %d\r\n", gSecondsCounter);
-      //ADS1278_ReadAllChannels(&data);
+      //AFE11612_testDeviceId();
     }
 
     WDFEED();
@@ -271,6 +273,7 @@ void TIM1_IRQHandler(void)
 {
   //static ads1278_adc_data_t data;
   //ADS1278_getADCs(&data);
+  AFE11612_testDeviceId();
 }
 
 /*******************************************************************************
