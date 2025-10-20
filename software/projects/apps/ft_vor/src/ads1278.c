@@ -49,7 +49,7 @@ float   tempVec[12][12];
 
 static hal_spi_handle_t hspi;
 static volatile hal_status_t spiStat;
-static volatile bool rxDmaDone = true;
+static volatile bool transferDone = true;
 static volatile uint32_t missedSamples;
 static volatile uint32_t sampleCount;
         
@@ -154,9 +154,9 @@ void ConfigureADS1278(void) {
 void PF0_IRQHandler(void) {
 
 #if defined(USE_DMA) || defined(USE_IRQ)
-    if ( rxDmaDone ) {
-        rxDmaDone = false;
-        Pin_set(DBG_PORT, DBG1_PIN, !rxDmaDone);
+    if ( transferDone ) {
+        transferDone = false;
+        Pin_set(DBG_PORT, DBG1_PIN, !transferDone);
 #if defined(USE_DMA)
         HAL_Spi_ConfigDMA(&hspi, 0, 1);
         spiStat = HAL_Spi_ReceiveDMA(&hspi, spi_rx_data.spiword, SPI_WORDS_X_CH*ADC_CH_NUM);
@@ -184,9 +184,12 @@ void PF0_IRQHandler(void) {
 #endif
 }
 
-// declared weak in va416xx_hal_spi.c
-// Used for DMA transfers, called by DMA RX channel DONE interrupt
-void HAL_Spi1_Cmplt_Callback(hal_spi_handle_t* const hspi)
+/* declared weak in va416xx_hal_spi.c
+ * Used for non-blocking SPI transfers (interrupt and DMA)
+ * called by Spi_Callback - HAL_Spi_Rx_Dma_Callback - DMA RX channel DONE interrupt
+ * called by Spi_Callback - Spi_StateMachine - SPIn_RX_IRQHandler
+ */
+ void HAL_Spi1_Cmplt_Callback(hal_spi_handle_t* const hspi)
 {
     if(hspi->state == hal_spi_state_error) {
         spiStat = hal_status_rxError; // receive overrun
@@ -198,9 +201,9 @@ void HAL_Spi1_Cmplt_Callback(hal_spi_handle_t* const hspi)
     process_spi_data();
 
 exit_cb :    
-    rxDmaDone = true;
-    Pin_set(DBG_PORT, DBG1_PIN, !rxDmaDone);
-        
+    transferDone = true;
+    Pin_set(DBG_PORT, DBG1_PIN, !transferDone);
+
 }
 
 // function to allow external access to the data

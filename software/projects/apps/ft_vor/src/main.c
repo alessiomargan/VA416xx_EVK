@@ -273,7 +273,10 @@ void TIM1_IRQHandler(void)
 {
   //static ads1278_adc_data_t data;
   //ADS1278_getADCs(&data);
-  AFE11612_testDeviceId();
+  //AFE11612_testDeviceId();
+  // Read only the 3 temperature sensors and STATUS register
+  int8_t temp_indices[] = {0, 1, 2, 23, -1};  // indices 0-2 are temps, 23 is STATUS
+  AFE11612_ReadValuesByIndex(temp_indices);
 }
 
 /*******************************************************************************

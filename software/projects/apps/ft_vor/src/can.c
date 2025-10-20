@@ -39,30 +39,45 @@ static can_cmb_t * const can_cmb_13 = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB13;
 static can_cmb_t * const can_cmb_12 = (can_cmb_t*)&VOR_CAN0->CNSTAT_CMB12;
 
 
-// CMB0 Rx msg buffer Remote Transmission Request
 static hal_can_id11_t rtr_id_0 = 0x100;
+// CMB0 Rx msg buffer Remote Transmission Request
 static volatile can_cmb_t * const can_cmb_0 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB0;
 // CMB1 TX msg buffer Remote Transmission Response
 static volatile can_cmb_t * const can_cmb_1 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB1;
-// CMB2 Rx msg buffer Remote Transmission Request
+
 static hal_can_id11_t rtr_id_1 = 0x101;
+// CMB2 Rx msg buffer Remote Transmission Request
 static volatile can_cmb_t * const can_cmb_2 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB2;
 // CMB3 TX msg buffer Remote Transmission Response
 static volatile can_cmb_t * const can_cmb_3 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB3;
-// CMB4 Rx msg buffer Remote Transmission Request
+
 static hal_can_id11_t rtr_id_2 = 0x102;
+// CMB4 Rx msg buffer Remote Transmission Request
 static volatile can_cmb_t * const can_cmb_4 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB4;
 // CMB5 TX msg buffer Remote Transmission Response
 static volatile can_cmb_t * const can_cmb_5 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB5;
-// CMB6 Rx msg buffer Remote Transmission Request
+
 static hal_can_id11_t rtr_id_3 = 0x103;
+// CMB6 Rx msg buffer Remote Transmission Request
 static volatile can_cmb_t * const can_cmb_6 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB6;
 // CMB7 TX msg buffer Remote Transmission Response
 static volatile can_cmb_t * const can_cmb_7 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB7;
 
+static hal_can_id11_t rtr_id_4 = 0x104;
+// CMB8 Rx msg buffer Remote Transmission Request
+static volatile can_cmb_t * const can_cmb_8 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB8;
+// CMB9 TX msg buffer Remote Transmission Response
+static volatile can_cmb_t * const can_cmb_9 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB9;
+
+static hal_can_id11_t rtr_id_5 = 0x105;
+// CMB10 Rx msg buffer Remote Transmission Request
+static volatile can_cmb_t * const can_cmb_10 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB10;
+// CMB11 TX msg buffer Remote Transmission Response
+static volatile can_cmb_t * const can_cmb_11 = (volatile can_cmb_t*)&VOR_CAN0->CNSTAT_CMB11;
 
 // Array of buffer pointers for RTR responses
-volatile can_cmb_t * const cmb_RTR_resp[] = {can_cmb_1, can_cmb_3, can_cmb_5, can_cmb_7};
+volatile can_cmb_t * const cmb_RTR_resp[] = {
+    can_cmb_1, can_cmb_3, can_cmb_5, can_cmb_7, can_cmb_9, can_cmb_11};
 
 
 /**
@@ -256,7 +271,13 @@ void ConfigureCAN0(void)
     /* Configure rx CMB6 for Remote Transmission Request - standard frame */
     /* Configure tx CMB7 for Remote Transmission Request Response - standard frame */
     HAL_Can_ConfigCMBs_RTR(can_cmb_6, can_cmb_7, rtr_id_3);
-    
+    /* Configure rx CMB8 for Remote Transmission Request - standard frame */
+    /* Configure tx CMB9 for Remote Transmission Request Response - standard frame */
+    HAL_Can_ConfigCMBs_RTR(can_cmb_8, can_cmb_9, rtr_id_4);
+    /* Configure rx CMB10 for Remote Transmission Request - standard frame */
+    /* Configure tx CMB11 for Remote Transmission Request Response - standard frame */
+    HAL_Can_ConfigCMBs_RTR(can_cmb_10, can_cmb_11, rtr_id_5);    
+
 #if 0
     can_pkt_t testPkt;
     testPkt.msgType = en_can_cmb_msgtype_STD11;
@@ -322,6 +343,13 @@ void CAN0_IRQHandler(void)
             respPkt.data16[1] = rxPkt.data16[1];
             respPkt.data16[2] = rxPkt.data16[2];
             respPkt.data16[3] = rxPkt.data16[3];
+            /* Send the response using a free transmit buffer */
+            HAL_Can_sendCanPkt(can_cmb_12, &respPkt);
+            break;
+        
+        case 0x4FE:
+            /* AFE request */
+            AFE11612_ProcessRequest(&rxPkt, &respPkt);
             /* Send the response using a free transmit buffer */
             HAL_Can_sendCanPkt(can_cmb_12, &respPkt);
             break;
