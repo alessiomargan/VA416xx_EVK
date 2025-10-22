@@ -19,8 +19,9 @@
 #define __AFE11612_H__
 
 #include <stdint.h>
-
 #include <afe11612_regs.h>
+
+#include "va416xx_hal_canbus.h"
 
 #define SPI_WORDLEN         (8u)
 #define SPI_WORDS           (3u)
@@ -124,5 +125,12 @@ uint8_t AFE11612_ReadValuesByIndex(const int8_t *indices);
  */
 int16_t AFE11612_ConvertTemp(uint16_t raw_value);
 
+/**
+ * @brief Process a CAN request for the AFE11612.
+ *
+ * @param rxPkt Pointer to the received CAN packet.
+ * @param respPkt Pointer to the response CAN packet.
+ */
+void AFE11612_ProcessRequest(const can_pkt_t *rxPkt, can_pkt_t *respPkt);
 
 #endif

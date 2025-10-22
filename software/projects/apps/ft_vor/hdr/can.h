@@ -24,6 +24,9 @@
 // Function to initialize and configure CAN0 peripheral
 void ConfigureCAN0(void);
 
+// Function to initialize and configure CAN1 peripheral
+void ConfigureCAN1(void);
+
 // Global array of CAN message buffers for RTR responses
 extern volatile can_cmb_t * const cmb_RTR_resp[];
 

@@ -200,6 +200,7 @@ static uint8_t Initialize(void)
   VOR_PORTG->CLROUT = 1UL<<2; // PG2 output low
 
   ConfigureCAN0();
+  ConfigureCAN1();
   ConfigureADS1278();
   ConfigureAFE11612();
   
