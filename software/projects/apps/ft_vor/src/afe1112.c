@@ -59,7 +59,34 @@ afe11612_reg_t afe11612_config[] = {
     { AFE11612_REG_AFE__CONFIG_1,       0x0070 },  /* 0x4D - AFE Configuration Register 1 */
     { AFE11612_REG_ALR_CTRL,            0x0000 },  /* 0x4E - Alarm Control Register */
     { AFE11612_REG_ADC_CH0,             0x0000 },  /* 0x50 - ADC Channel 0 configuration */
-    { AFE11612_REG_ADC_CH1,             0x0000 }   /* 0x51 - ADC Channel 1 configuration */
+    { AFE11612_REG_ADC_CH1,             0x0000 },  /* 0x51 - ADC Channel 1 configuration */
+    { AFE11612_REG_ADC_GAIN,            0xFFFF },  /* 0x52 - ADC Gain */
+    { AFE11612_REG_AUTO_DAC__CLR__SOURCE, 0x0004 }, /* 0x53 - Auto DAC Clear Source */
+    { AFE11612_REG_AUTO_DAC__CLR_EN,    0x0000 },  /* 0x54 - Auto DAC Clear Enable */
+    { AFE11612_REG_SW_DAC__CLR,         0x0000 },  /* 0x55 - Software DAC Clear */
+    { AFE11612_REG_HW_DAC__CLR_EN_0,    0x0000 },  /* 0x56 - Hardware DAC Clear Enable 0 */
+    { AFE11612_REG_HW_DAC__CLR_EN_1,    0x0000 },  /* 0x57 - Hardware DAC Clear Enable 1 */
+    { AFE11612_REG_DAC_CONFIG,          0x0000 },  /* 0x58 - DAC Configuration */
+    { AFE11612_REG_DAC_GAIN,            0x0000 },  /* 0x59 - DAC Gain */
+    { AFE11612_REG_IN_0__HIGH__THRESHOLD, 0x0FFF }, /* 0x5A - IN_0 High Threshold */
+    { AFE11612_REG_IN_0__LOW__THRESHOLD,  0x0000 }, /* 0x5B - IN_0 Low Threshold */
+    { AFE11612_REG_IN_1__HIGH__THRESHOLD, 0x0FFF }, /* 0x5C - IN_1 High Threshold */
+    { AFE11612_REG_IN_1__LOW__THRESHOLD,  0x0000 }, /* 0x5D - IN_1 Low Threshold */
+    { AFE11612_REG_IN_2__HIGH__THRESHOLD, 0x0FFF }, /* 0x5E - IN_2 High Threshold */
+    { AFE11612_REG_IN_2__LOW__THRESHOLD,  0x0000 }, /* 0x5F - IN_2 Low Threshold */
+    { AFE11612_REG_IN_3__HIGH__THRESHOLD, 0x0FFF }, /* 0x60 - IN_3 High Threshold */
+    { AFE11612_REG_IN_3__LOW__THRESHOLD,  0x0000 }, /* 0x61 - IN_3 Low Threshold */
+    { AFE11612_REG_LT__HIGH__THRESHOLD,   0x07FF }, /* 0x62 - Local Temp High Threshold */
+    { AFE11612_REG_LT__LOW__THRESHOLD,    0x0800 }, /* 0x63 - Local Temp Low Threshold */
+    { AFE11612_REG_D1__HIGH__THRESHOLD,   0x07FF }, /* 0x64 - D1 Temp High Threshold */
+    { AFE11612_REG_D1__LOW__THRESHOLD,    0x0800 }, /* 0x65 - D1 Temp Low Threshold */
+    { AFE11612_REG_D2__HIGH__THRESHOLD,   0x0000 }, /* 0x66 - D2 Temp High Threshold */
+    { AFE11612_REG_D2__LOW__THRESHOLD,    0x0000 }, /* 0x67 - D2 Temp Low Threshold */
+    { AFE11612_REG_HYST_0,                0x0810 }, /* 0x68 - Hysteresis 0 */
+    { AFE11612_REG_HYST_1,                0x0810 }, /* 0x69 - Hysteresis 1 */
+    { AFE11612_REG_HYST_2,                0x2108 }, /* 0x6A - Hysteresis 2 */
+    { AFE11612_REG_PWR_DOWN,              0x0000 }, /* 0x6B - Power Down */
+    { AFE11612_REG_SW_RST,                0x0000 }  /* 0x7C - Software Reset */
 };
 /**
  * Get the number of configuration registers.
@@ -91,7 +118,8 @@ afe11612_reg_t afe11612_values[] = {
     { AFE11612_REG_DAC_9,               0x0000 },  /* 0x3C - DAC 9 output */
     { AFE11612_REG_DAC_10,              0x0000 },  /* 0x3D - DAC 10 output */
     { AFE11612_REG_DAC_11,              0x0000 },  /* 0x3E - DAC 11 output */
-    { AFE11612_REG_STATUS,              0x0000 }   /* 0x4F - Status register (alarms/faults) */
+    { AFE11612_REG_STATUS,              0x0000 },  /* 0x4F - Status register (alarms/faults) */
+    { AFE11612_REG_DEVICE_ID,           0x0000 }   /* 0x6C - Device ID */
 };
 /**
  * Get the number of runtime value registers.
