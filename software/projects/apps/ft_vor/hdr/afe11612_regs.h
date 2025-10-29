@@ -91,4 +91,8 @@
 #define AFE11612_REG_DEVICE_ID                      0x6C  /* R */
 #define AFE11612_REG_SW_RST                         0x7C  /* R/W */
 
+/* AFE__CONFIG_0 Register Bit Definitions */
+#define AFE11612_ILDAC_BIT                          11    /* Internal LDAC bit position */
+#define AFE11612_ILDAC_MASK                         (1 << AFE11612_ILDAC_BIT)  /* 0x0800 */
+
 #endif /* __AFE11612_REGS_H__ */

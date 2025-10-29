@@ -150,7 +150,10 @@ void ConfigureADS1278(void) {
 
 }
 
-
+/**
+ * @brief GPIO Port F Pin 0 Interrupt Handler
+ * 
+ */
 void PF0_IRQHandler(void) {
 
 #if defined(USE_DMA) || defined(USE_IRQ)

@@ -33,6 +33,7 @@
 #include "can.h"
 #include "ads1278.h"
 #include "afe11612.h"
+#include "sine_table.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
@@ -199,6 +200,7 @@ static uint8_t Initialize(void)
   UartInit(VOR_UART0, UART_BAUDRATE);
   VOR_PORTG->CLROUT = 1UL<<2; // PG2 output low
 
+  // setup specific application peripherals
   ConfigureCAN0();
   ConfigureCAN1();
   ConfigureADS1278();
@@ -236,17 +238,16 @@ int main(void)
   
   // setup timer 0 to interrupt every 0.5 second (blinks PG5 LED)
   HAL_Timer_SetupPeriodicIrqMs(BLINK_TIMER_NUM, BLINK_TIMER_MS, BLINK_TIMER_PRIO);
-  
   // setup timer 1 to interrupt every 0.1 second
   HAL_Timer_SetupPeriodicIrqMs(PRINT_TIMER_NUM, PRINT_TIMER_MS, PRINT_TIMER_PRIO);
+  // setup timer 2 to interrupt every 500 usec
+  HAL_Timer_SetupPeriodicIrqUs(2, 500, PRINT_TIMER_PRIO); // 1ms SysTick alternative
   
   while(1)
   {
     if(HAL_time_ms >= nextSecTask_ms){
       gSecondsCounter++;
       nextSecTask_ms += 1000;
-      //printf("seconds: %d\r\n", gSecondsCounter);
-      //AFE11612_testDeviceId();
     }
 
     WDFEED();
@@ -276,8 +277,41 @@ void TIM1_IRQHandler(void)
   //ADS1278_getADCs(&data);
   //AFE11612_testDeviceId();
   // Read only the 3 temperature sensors and STATUS register
-  int8_t temp_indices[] = {0, 1, 2, 23, -1};  // indices 0-2 are temps, 23 is STATUS
+  int8_t temp_indices[] = {
+    AFE_VALUES_IDX_LT__TEMP,
+    AFE_VALUES_IDX_D1__TEMP,
+    AFE_VALUES_IDX_D2__TEMP,
+    AFE_VALUES_IDX_STATUS,
+    -1};
   AFE11612_ReadValuesByIndex(temp_indices);
+  
+  printf("LT: %d D1: %d D2: %d STATUS: 0x%02X\r\n",
+    AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_LT__TEMP].value),
+    AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_D1__TEMP].value),
+    AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_D2__TEMP].value),
+    afe11612_values[AFE_VALUES_IDX_STATUS].value);
+}
+
+/*******************************************************************************
+ **
+ ** @brief  Timer2 IRQ Handler - AFE11612 DACs update
+ **
+ ******************************************************************************/
+void TIM2_IRQHandler(void)
+{
+  // clear ILDAC bit
+  AFE11612_ClearILDAC();
+  // Set DAC values in the array
+  static uint8_t phase = 0;
+  afe11612_values[AFE_VALUES_IDX_DAC_0].value = sine_table[phase];
+  // 180 degree phase shift
+  afe11612_values[AFE_VALUES_IDX_DAC_1].value = sine_table[(phase + 128) % SINE_TABLE_SIZE]; 
+  phase++;  // Automatically wraps at 256
+  // Write only those specific DAC registers
+  int8_t indices[] = {AFE_VALUES_IDX_DAC_0, AFE_VALUES_IDX_DAC_1, -1};
+  uint8_t written = AFE11612_WriteValuesByIndex(indices);
+  // set ILDAC bit to update DAC outputs
+  AFE11612_SetILDAC();
 }
 
 /*******************************************************************************

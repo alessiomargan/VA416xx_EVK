@@ -35,7 +35,7 @@
 static hal_spi_handle_t hspi;
 static volatile hal_status_t spiStat;
 static volatile bool transferDone = true;
-static volatile transferState_t transferState;
+static volatile transferState_t transferState = TXFER_IDLE;
 
 /* Configuration registers - written during initialization (ordered by register address) */
 afe11612_reg_t afe11612_config[] = {
@@ -55,7 +55,7 @@ afe11612_reg_t afe11612_config[] = {
     { AFE11612_REG_DAC_9__CLR,          0x0000 },  /* 0x48 - DAC 9 clear value */
     { AFE11612_REG_DAC_10__CLR,         0x0000 },  /* 0x49 - DAC 10 clear value */
     { AFE11612_REG_DAC_11__CLR,         0x0000 },  /* 0x4A - DAC 11 clear value */
-    { AFE11612_REG_AFE__CONFIG_0,       0x2000 },  /* 0x4C - AFE Configuration Register 0 */
+    { AFE11612_REG_AFE__CONFIG_0,       0x2200 },  /* 0x4C - AFE Configuration Register 0 */
     { AFE11612_REG_AFE__CONFIG_1,       0x0070 },  /* 0x4D - AFE Configuration Register 1 */
     { AFE11612_REG_ALR_CTRL,            0x0000 },  /* 0x4E - Alarm Control Register */
     { AFE11612_REG_ADC_CH0,             0x0000 },  /* 0x50 - ADC Channel 0 configuration */
@@ -66,8 +66,8 @@ afe11612_reg_t afe11612_config[] = {
     { AFE11612_REG_SW_DAC__CLR,         0x0000 },  /* 0x55 - Software DAC Clear */
     { AFE11612_REG_HW_DAC__CLR_EN_0,    0x0000 },  /* 0x56 - Hardware DAC Clear Enable 0 */
     { AFE11612_REG_HW_DAC__CLR_EN_1,    0x0000 },  /* 0x57 - Hardware DAC Clear Enable 1 */
-    { AFE11612_REG_DAC_CONFIG,          0x0000 },  /* 0x58 - DAC Configuration */
-    { AFE11612_REG_DAC_GAIN,            0x0000 },  /* 0x59 - DAC Gain */
+    { AFE11612_REG_DAC_CONFIG,          0x0FFF },  /* 0x58 - DAC Configuration */
+    { AFE11612_REG_DAC_GAIN,            0x0000 },  /* 0x59 - DAC Gain --> SLDA[0..4] */
     { AFE11612_REG_IN_0__HIGH__THRESHOLD, 0x0FFF }, /* 0x5A - IN_0 High Threshold */
     { AFE11612_REG_IN_0__LOW__THRESHOLD,  0x0000 }, /* 0x5B - IN_0 Low Threshold */
     { AFE11612_REG_IN_1__HIGH__THRESHOLD, 0x0FFF }, /* 0x5C - IN_1 High Threshold */
@@ -80,12 +80,12 @@ afe11612_reg_t afe11612_config[] = {
     { AFE11612_REG_LT__LOW__THRESHOLD,    0x0800 }, /* 0x63 - Local Temp Low Threshold */
     { AFE11612_REG_D1__HIGH__THRESHOLD,   0x07FF }, /* 0x64 - D1 Temp High Threshold */
     { AFE11612_REG_D1__LOW__THRESHOLD,    0x0800 }, /* 0x65 - D1 Temp Low Threshold */
-    { AFE11612_REG_D2__HIGH__THRESHOLD,   0x0000 }, /* 0x66 - D2 Temp High Threshold */
-    { AFE11612_REG_D2__LOW__THRESHOLD,    0x0000 }, /* 0x67 - D2 Temp Low Threshold */
+    { AFE11612_REG_D2__HIGH__THRESHOLD,   0x07FF }, /* 0x66 - D2 Temp High Threshold */
+    { AFE11612_REG_D2__LOW__THRESHOLD,    0x0800 }, /* 0x67 - D2 Temp Low Threshold */
     { AFE11612_REG_HYST_0,                0x0810 }, /* 0x68 - Hysteresis 0 */
     { AFE11612_REG_HYST_1,                0x0810 }, /* 0x69 - Hysteresis 1 */
     { AFE11612_REG_HYST_2,                0x2108 }, /* 0x6A - Hysteresis 2 */
-    { AFE11612_REG_PWR_DOWN,              0x0000 }, /* 0x6B - Power Down */
+    { AFE11612_REG_PWR_DOWN,              0x3FFE }, /* 0x6B - Power Down */
     { AFE11612_REG_SW_RST,                0x0000 }  /* 0x7C - Software Reset */
 };
 /**
@@ -167,6 +167,18 @@ void ConfigureAFE11612(void) {
         return;
     }
     
+    // Initialize ~ALARM pin as an input interrupt to trigger alarm.
+    // Configure as input
+    ALARM_PORT->DIR &= ~(1 << ALARM_PIN);
+    // Configure falling edge interrupt
+    ALARM_PORT->IRQ_SEN  &= ~(1 << ALARM_PIN);  // Edge sensitive
+    ALARM_PORT->IRQ_EDGE &= ~(1 << ALARM_PIN);  // Falling edge
+    ALARM_PORT->IRQ_EVT  &= ~(1 << ALARM_PIN);
+    ALARM_PORT->IRQ_ENB  |= (1 << ALARM_PIN);
+    // Enable NVIC interrupt for GPIO Bank F
+    NVIC_EnableIRQ(PORTA0_IRQn);
+    NVIC_SetPriority(PORTA0_IRQn, 3);  // Set appropriate priority
+
     // keep RESET low for a while
     Pin_off(RESET_PORT, RESET_PIN);
     for(volatile int i=0; i<10000; i++) { asm("nop"); }
@@ -180,6 +192,14 @@ void ConfigureAFE11612(void) {
     }
   
     AFE11612_WriteConfig();
+}
+
+/**
+ * @brief GPIO Port A Pin 0 Interrupt Handler
+ * 
+ */
+void PA0_IRQHandler(void) {
+    // TODO: handle alarm condition
 }
 
 /* declared weak in va416xx_hal_spi.c
@@ -215,7 +235,12 @@ void ConfigureAFE11612(void) {
     }
 
 exit_cb :
-    transferDone = true;
+    if ( transferState == TXFER_ERROR || transferState == TXFER_IDLE ) {
+        transferDone = false;
+    }
+    if ( transferState == TXFER_RD_COMPLETE || transferState == TXFER_WR_COMPLETE ) {
+        transferDone = true;
+    }
     Pin_set(DBG_PORT, DBG2_PIN, !transferDone);
         
 }
@@ -235,6 +260,8 @@ bool AFE11612_ReadReg(uint8_t reg, uint16_t *out) {
     cmd.spiword[1] = 0x00;
     cmd.spiword[2] = 0x00;
 
+    transferDone = false;
+    Pin_set(DBG_PORT, DBG2_PIN, !transferDone);
     transferState = TXFER_RD_PROGRESS_1;
     /* Send read command (3 bytes) */
     //spiStat = HAL_Spi_Transmit(&hspi, (void*)cmd.spiword, SPI_WORDS, 0, false);
@@ -276,6 +303,8 @@ bool AFE11612_WriteReg(uint8_t reg, uint16_t value) {
     cmd.spiword[1] = (value >> 8) & 0xFF;
     cmd.spiword[2] = value & 0xFF;
 
+    transferDone = false;
+    Pin_set(DBG_PORT, DBG2_PIN, !transferDone);
     transferState = TXFER_WR_PROGRESS_1;
     /* Send write command (3 bytes) */
     //spiStat = HAL_Spi_Transmit(&hspi, (void*)cmd.spiword, SPI_WORDS, 0, true);
@@ -376,6 +405,36 @@ uint8_t AFE11612_ReadValuesByIndex(const int8_t *indices) {
     return success_count;
 }
 
+uint8_t AFE11612_WriteValuesByIndex(const int8_t *indices) {
+    uint8_t success_count = 0;
+    
+    if (indices == NULL) {
+        return 0;
+    }
+    
+    // Process indices until we hit a negative marker
+    for (uint8_t i = 0; indices[i] >= 0; i++) {
+        int8_t idx = indices[i];
+        
+        // Bounds check
+        if (idx >= AFE11612_VALUES_COUNT) {
+            printf("Error: AFE11612_WriteValuesByIndex invalid index %d (max %d)\n", 
+                   idx, AFE11612_VALUES_COUNT - 1);
+            continue;
+        }
+        
+        // Write the register at this index
+        if (AFE11612_WriteReg(afe11612_values[idx].reg, afe11612_values[idx].value)) {
+            success_count++;
+        } else {
+            printf("Error: AFE11612_WriteValuesByIndex failed at index %d (register 0x%02X)\n", 
+                   idx, afe11612_values[idx].reg);
+        }
+    }
+    
+    return success_count;
+}
+
 void AFE11612_ProcessRequest(const can_pkt_t *rxPkt, can_pkt_t *respPkt) {
 
     respPkt->id = 0x5FE;  /* AFE response ID */
@@ -383,12 +442,22 @@ void AFE11612_ProcessRequest(const can_pkt_t *rxPkt, can_pkt_t *respPkt) {
     respPkt->txPriorityCode = 0;   /* Highest priority */
     respPkt->msgType = en_can_cmb_msgtype_STD11;
 #if 0
-    respPkt->data16[0] = afe11612_values[AFE11612_REG_LT__TEMP].value;
-    respPkt->data16[1] = afe11612_values[AFE11612_REG_D1__TEMP].value;
-    respPkt->data16[2] = afe11612_values[AFE11612_REG_D2__TEMP].value;
+    respPkt->data16[0] = afe11612_values[AFE_VALUES_IDX_LT__TEMP].value;
+    respPkt->data16[1] = afe11612_values[AFE_VALUES_IDX_D1__TEMP].value;
+    respPkt->data16[2] = afe11612_values[AFE_VALUES_IDX_D2__TEMP].value;
 #else
-    respPkt->data16[0] = AFE11612_ConvertTemp(afe11612_values[AFE11612_REG_LT__TEMP].value);
-    respPkt->data16[1] = AFE11612_ConvertTemp(afe11612_values[AFE11612_REG_D1__TEMP].value);
-    respPkt->data16[2] = AFE11612_ConvertTemp(afe11612_values[AFE11612_REG_D2__TEMP].value);
+    respPkt->data16[0] = AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_LT__TEMP].value);
+    respPkt->data16[1] = AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_D1__TEMP].value);
+    respPkt->data16[2] = AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_D2__TEMP].value);
 #endif
+}
+
+void AFE11612_SetILDAC(void) {
+  afe11612_config[AFE_CONFIG_IDX_AFE__CONFIG_0].value |= AFE11612_ILDAC_MASK;
+  AFE11612_WriteReg(AFE11612_REG_AFE__CONFIG_0, afe11612_config[AFE_CONFIG_IDX_AFE__CONFIG_0].value);
+}
+
+void AFE11612_ClearILDAC(void) {
+  afe11612_config[AFE_CONFIG_IDX_AFE__CONFIG_0].value &= ~AFE11612_ILDAC_MASK;
+  AFE11612_WriteReg(AFE11612_REG_AFE__CONFIG_0, afe11612_config[AFE_CONFIG_IDX_AFE__CONFIG_0].value);
 }
