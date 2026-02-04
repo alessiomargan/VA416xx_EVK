@@ -33,7 +33,7 @@
 #include "can.h"
 #include "ads1278.h"
 #include "afe11612.h"
-#include "sine_table.h"
+#include "signal_table.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
@@ -284,12 +284,13 @@ void TIM1_IRQHandler(void)
     AFE_VALUES_IDX_STATUS,
     -1};
   AFE11612_ReadValuesByIndex(temp_indices);
-  
+#if 0  
   printf("LT: %d D1: %d D2: %d STATUS: 0x%02X\r\n",
     AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_LT__TEMP].value),
     AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_D1__TEMP].value),
     AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_D2__TEMP].value),
     afe11612_values[AFE_VALUES_IDX_STATUS].value);
+#endif
 }
 
 /*******************************************************************************
@@ -303,12 +304,21 @@ void TIM2_IRQHandler(void)
   AFE11612_ClearILDAC();
   // Set DAC values in the array
   static uint8_t phase = 0;
+  // sine wave on DAC0 and DAC1
   afe11612_values[AFE_VALUES_IDX_DAC_0].value = sine_table[phase];
   // 180 degree phase shift
-  afe11612_values[AFE_VALUES_IDX_DAC_1].value = sine_table[(phase + 128) % SINE_TABLE_SIZE]; 
+  afe11612_values[AFE_VALUES_IDX_DAC_1].value = sine_table[(phase + 128) % SIGNAL_TABLE_SIZE] >> 1; 
+  // triangle wave on DAC2 and DAC3
+  afe11612_values[AFE_VALUES_IDX_DAC_2].value = triangle_table[phase];
+  // 180 degree phase shift
+  afe11612_values[AFE_VALUES_IDX_DAC_3].value = triangle_table[(phase + 128) % SIGNAL_TABLE_SIZE] >> 1; 
   phase++;  // Automatically wraps at 256
   // Write only those specific DAC registers
-  int8_t indices[] = {AFE_VALUES_IDX_DAC_0, AFE_VALUES_IDX_DAC_1, -1};
+  int8_t indices[] = {
+    AFE_VALUES_IDX_DAC_0, AFE_VALUES_IDX_DAC_1,
+    AFE_VALUES_IDX_DAC_2, AFE_VALUES_IDX_DAC_3,
+    -1
+  };
   uint8_t written = AFE11612_WriteValuesByIndex(indices);
   // set ILDAC bit to update DAC outputs
   AFE11612_SetILDAC();

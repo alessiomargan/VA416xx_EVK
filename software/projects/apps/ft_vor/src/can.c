@@ -28,6 +28,7 @@
 #include "board.h"
 #include "can.h"
 #include "ads1278.h"
+#include "afe11612.h"
 
 #include "va416xx_hal_canbus.h"
 
