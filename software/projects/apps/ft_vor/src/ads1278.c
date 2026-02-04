@@ -118,8 +118,8 @@ void ConfigureADS1278(void) {
     hspi.init.clkDiv = 10;   // could be less but wires probes make clk suck
     hspi.init.loopback = false;
     hspi.init.mdlycap = false;
-    // for ads1278 don't care ?!?
-    hspi.init.mode = hal_spi_clkmode_0;
+    // for ads1278 don't care ?!? was hal_spi_clkmode_0 set equal to afe11612
+    hspi.init.mode = hal_spi_clkmode_1;
     hspi.init.ms = hal_spi_ms_master;
     hspi.init.chipSelect = 0;
     hspi.init.wordLen = SPI_WORDLEN;
