@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.16.3)
 
 set(PROJECT_NAME "firmware")
 
+# Enable compile_commands.json generation
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_SYSTEM_NAME             Linux)
 set(CMAKE_SYSTEM_PROCESSOR        arm)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)

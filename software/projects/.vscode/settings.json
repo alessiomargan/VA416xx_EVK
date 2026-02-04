@@ -31,5 +31,12 @@
       "ads1278.h": "c"
     },
     "cortex-debug.registerUseNaturalFormat": false,
-    "cortex-debug.variableUseNaturalFormat": false
+    "cortex-debug.variableUseNaturalFormat": false,
+    "C_Cpp.intelliSenseEngine": "default",
+    //"C_Cpp.intelliSenseEngine": "disabled",
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--background-index",
+        "--clang-tidy"
+    ]
 }
