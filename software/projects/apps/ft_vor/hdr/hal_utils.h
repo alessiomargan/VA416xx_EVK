@@ -8,6 +8,7 @@
 
 #define DBG1_PIN     10
 #define DBG2_PIN     11
+#define DBG3_PIN     12
 #define DBG_PORT    PORTF
 
 

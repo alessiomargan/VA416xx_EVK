@@ -34,6 +34,7 @@
 #include "ads1278.h"
 #include "afe11612.h"
 #include "signal_table.h"
+#include "hal_utils.h"
 
 #include "va416xx_hal.h"
 #include "va416xx_hal_clkgen.h"
@@ -66,6 +67,10 @@ void _isatty(void) {}
 #define PRINT_TIMER_NUM  (1)
 #define PRINT_TIMER_MS   (100)
 #define PRINT_TIMER_PRIO (6)
+
+#define AFE_TIMER_NUM  (2)
+#define AFE_TIMER_MS   (50)
+#define AFE_TIMER_PRIO (5)
 
 
 #define RESET_PERIPHERALS() do{                   \
@@ -241,7 +246,7 @@ int main(void)
   // setup timer 1 to interrupt every 0.1 second
   HAL_Timer_SetupPeriodicIrqMs(PRINT_TIMER_NUM, PRINT_TIMER_MS, PRINT_TIMER_PRIO);
   // setup timer 2 to interrupt every 500 usec
-  HAL_Timer_SetupPeriodicIrqUs(2, 500, PRINT_TIMER_PRIO); // 1ms SysTick alternative
+  HAL_Timer_SetupPeriodicIrqUs(AFE_TIMER_NUM, AFE_TIMER_MS, AFE_TIMER_PRIO);
   
   while(1)
   {
@@ -276,14 +281,6 @@ void TIM1_IRQHandler(void)
   //static ads1278_adc_data_t data;
   //ADS1278_getADCs(&data);
   //AFE11612_testDeviceId();
-  // Read only the 3 temperature sensors and STATUS register
-  int8_t temp_indices[] = {
-    AFE_VALUES_IDX_LT__TEMP,
-    AFE_VALUES_IDX_D1__TEMP,
-    AFE_VALUES_IDX_D2__TEMP,
-    AFE_VALUES_IDX_STATUS,
-    -1};
-  AFE11612_ReadValuesByIndex(temp_indices);
 #if 0  
   printf("LT: %d D1: %d D2: %d STATUS: 0x%02X\r\n",
     AFE11612_ConvertTemp(afe11612_values[AFE_VALUES_IDX_LT__TEMP].value),
@@ -300,6 +297,17 @@ void TIM1_IRQHandler(void)
  ******************************************************************************/
 void TIM2_IRQHandler(void)
 {
+  // Read only the 3 temperature sensors and STATUS register
+  static int8_t temp_indices[] = {
+    AFE_VALUES_IDX_LT__TEMP,
+    AFE_VALUES_IDX_D1__TEMP,
+    AFE_VALUES_IDX_D2__TEMP,
+    AFE_VALUES_IDX_STATUS,
+    -1};
+  Pin_set(DBG_PORT, DBG3_PIN, 1);
+  AFE11612_ReadValuesByIndex(temp_indices);
+  Pin_set(DBG_PORT, DBG3_PIN, 0);
+  
   // clear ILDAC bit
   AFE11612_ClearILDAC();
   // Set DAC values in the array
