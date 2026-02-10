@@ -44,7 +44,7 @@
 /* assert enable/disable (comment out to disable) */
 /*#define USE_ASSERT*/
 
-/* if defined, exables CRC corruption test functions * DISABLE FOR RELEASE* */
+/* if defined, enables CRC corruption test functions * DISABLE FOR RELEASE* */
 /*#define ENABLE_CRC_TEST*/
 
 /* memory test enable / disable */
