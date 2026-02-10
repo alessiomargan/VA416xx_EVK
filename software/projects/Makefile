@@ -42,6 +42,9 @@ demo:
 bootloader:
 	@make -C build bootloader
 
+can_bootloader:
+	@make -C build can_bootloader
+
 loader:
 	@make -C build loader
 
