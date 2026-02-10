@@ -110,6 +110,7 @@ include_directories(freeRTOS/Source/portable/GCC/ARM_CM4F)
 
 # Apps Source paths
 add_subdirectory(apps/bootloader/src)
+add_subdirectory(apps/can_bootloader/src)
 add_subdirectory(apps/loader)
 add_subdirectory(apps/eraser)
 add_subdirectory(apps/blinky/src)
@@ -181,6 +182,7 @@ function(build_loader loader src)
 endfunction()
 
 build_target(bootloader BOOTLOADER_SRC)
+build_target(can_bootloader CAN_BOOTLOADER_SRC)
 
 build_loader(loader LOADER_SRC)
 build_loader(eraser ERASER_SRC)
