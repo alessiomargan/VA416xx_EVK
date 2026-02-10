@@ -42,6 +42,8 @@
 
 #define DRDY_PIN    0
 #define DRDY_PORT   PORTF
+#define SYNC_PIN    1
+#define SYNC_PORT   PORTF
 
 
 calib_t calMat[10];
@@ -148,6 +150,12 @@ void ConfigureADS1278(void) {
     NVIC_EnableIRQ(PORTF0_IRQn);
     NVIC_SetPriority(PORTF0_IRQn, 3);  // Set appropriate priority
 
+    // When the pin goes low, the conversion process stops, and
+    // the internal counters used by the digital filter are reset.
+    // When the SYNC pin returns high, the conversion process restarts.
+    Pin_off(SYNC_PORT, SYNC_PIN);
+    for(volatile int i=0; i<10000; i++) { asm("nop"); }
+    Pin_on(SYNC_PORT, SYNC_PIN);
 }
 
 /**
