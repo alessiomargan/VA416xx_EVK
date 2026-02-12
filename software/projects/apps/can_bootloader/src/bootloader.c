@@ -126,8 +126,8 @@ void Bootloader_CheckOwnCRC(void)
   }else{
     if(crc_calc != crc_exp){
       // bootloader is corrupted - just try to run App A
-      UART0TxByte('A');
-      UART1TxByte('A');
+      //UART0TxByte('A');
+      //UART1TxByte('A');
       Bootloader_RunApp(en_runapp_a);
     }
   }
@@ -307,9 +307,9 @@ void Bootloader_Task(void)
 {
 	static en_bl_status_t status = BL_WAITING_FOR_CMD;
 	static en_bl_states_t state = ST_BEGIN;
-  	static en_runapp_t app = en_runapp_a;
+  static en_runapp_t app = en_runapp_a;
 	static size_t bytesRcvd = 0;
-  	en_memcheck_t app_status;
+  static en_memcheck_t app_status;
 
 	// Process CAN protocol messages
 	CANProtocol_Task();

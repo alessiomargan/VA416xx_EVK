@@ -31,6 +31,7 @@
 #include "board.h"
 #include "can.h"
 #include "can_protocol.h"
+#include "bootloader.h"
 #include "main.h"
 #include "crc.h"
 
