@@ -1,2 +1,2 @@
-# Include Makefile despite global ignore
 !Makefile
+build/

@@ -44,6 +44,90 @@ static volatile can_cmb_t * const can0_cmb_tx = (volatile can_cmb_t*)&VOR_CAN0->
 /*****************************************************************************/
 /* Function implementation                                                   */
 /*****************************************************************************/
+/* CAN configuration structure */
+static can_config_t canConfig =
+{
+    /** 
+     * Configure CAN general settings
+    The CGCR is used to:
+    - Enable/disable the CAN module
+    - Configure the BUFFLOCK function for the message buffers 0 to 14
+    - Enable/disable the time stamp synchronization
+    - Set the logic levels of the CAN input/output pins
+    - Choose the data storage direction
+    - Select the error interrupt type
+    - Enable/disable diagnostic functions
+    **/
+    .CGCR = 0x0
+		| CAN_CGCR_CANEN_Msk        // CAN enable
+//        | CAN_CGCR_CRX_Msk        // Control receive   
+//        | CAN_CGCR_CTX_Msk        // Control transmit
+        | CAN_CGCR_BUFFLOCK_Msk  
+        | CAN_CGCR_TSTPEN_Msk       // Time sync enable
+//        | CAN_CGCR_DDIR_Msk      
+//        | CAN_CGCR_LO_Msk        
+ 		| CAN_CGCR_IGNACK_Msk       // Ignore ACK
+//		| CAN_CGCR_LOOPBACK_Msk     //no loopback here
+//        | CAN_CGCR_INTERNAL_Msk  
+        | CAN_CGCR_DIAGEN_Msk    
+        | CAN_CGCR_EIT_Msk,         // Error interrupt type
+    /**
+     * System clock = 100MHz, CAN peripheral input clock APB1 (System clock /2 ) => CKI = 50MHz
+     * 50MHz / (PSC * (1+TSEG1+TSEG2))
+     * 50MHz / (PSC * (1+3+6))
+    **/
+    .CTIM_TSEG2 = (6UL-1UL),  //6 time quanta,
+    .CTIM_TSEG1 = (3UL-1UL),  //3 time quanta,
+    .CTIM_SJW   = (1UL-1UL),  //1 time quanta,
+    // Configure CAN timing for 500 kbps
+    //.CTIM_PSC   = (10UL-2UL), //CAN PreScalar=10,
+    // Configure CAN timing for 250 kbps
+    .CTIM_PSC   = (20UL-2UL), //CAN PreScalar=20,
+    // Configure CAN timing for 125 kbps
+    //.CTIM_PSC   = (40UL-2UL), //CAN PreScalar=40,
+    /**
+     * CAN Interrupt Code Enable Register (CICEN) 
+     * The CICEN register determines whether the interrupt pending flag in IPND must be translated
+     * into the Interrupt Code field of the STPND register
+     **/
+    .CICEN = CAN_CICEN_ICEN_Msk | CAN_CICEN_EICEN_Msk // Enable error and interrupt conditions
+};
+
+static inline void HAL_Can_ClearBufferStatus(can_cmb_t *can_cmb)
+{
+    can_cmb->CNSTAT = en_can_cmb_cnstat_st_RX_NOT_ACTIVE;
+}
+
+static inline void HAL_Can_ClearAllBufferStatus(VOR_CAN_Type *myCAN)
+{
+    can_cmb_t *can_cmb = (can_cmb_t*)&myCAN->CNSTAT_CMB0;
+    for (uint8_t i = 0; i <= 14; i++) {
+        can_cmb[i].CNSTAT = en_can_cmb_cnstat_st_RX_NOT_ACTIVE;
+    }
+}
+
+static inline void HAL_Can_Enable(VOR_CAN_Type *myCAN)
+{
+    uint32_t clk_enable;
+    if (myCAN == VOR_CAN0) {
+        clk_enable = CLK_ENABLE_CAN0;
+    } else if (myCAN == VOR_CAN1) {
+        clk_enable = CLK_ENABLE_CAN1;
+    } else {
+        return;
+    }
+
+    VOR_SYSCONFIG->PERIPHERAL_CLK_ENABLE |= clk_enable;
+    VOR_SYSCONFIG->PERIPHERAL_RESET &= ~clk_enable;
+    __NOP();
+    __NOP();
+    VOR_SYSCONFIG->PERIPHERAL_RESET |= clk_enable;
+
+    uint32_t* regPtr;
+    for(regPtr=(uint32_t *)myCAN; regPtr<=(uint32_t *)&myCAN->CTMR; regPtr++){
+        *regPtr = 0x0000;
+    }
+}
 
 /*******************************************************************************
  **
@@ -52,43 +136,48 @@ static volatile can_cmb_t * const can0_cmb_tx = (volatile can_cmb_t*)&VOR_CAN0->
  ******************************************************************************/
 void CAN_BootloaderInit(void)
 {
-  hal_can_config_t canConfig;
+  HAL_Can_Enable(VOR_CAN0);
+  /* Initialize CAN0 module with configuration and enable NVIC interrupt for CAN0 */
+  HAL_Can_Setup(VOR_CAN0, &canConfig, CAN0_IRQn);
   
-  // Enable CAN0 clock
-  VOR_SYSCONFIG->PERIPHERAL_CLK_ENABLE |= CLK_ENABLE_CAN0;
+  /** CAN Interrupt Enable Register (CIEN) 
+   * The CIEN register enables the transmit and receive interrupts of message buffers 0 through 14,
+   * and the CAN error interrupt
+   **/
+  VOR_CAN0->CIEN = 0x0003; // bits 0-1 0X0003
   
-  // Reset CAN0
-  VOR_SYSCONFIG->PERIPHERAL_RESET &= ~SYSCONFIG_PERIPHERAL_RESET_CAN0_Msk;
-  __NOP();
-  __NOP();
-  VOR_SYSCONFIG->PERIPHERAL_RESET |= SYSCONFIG_PERIPHERAL_RESET_CAN0_Msk;
+  /** CAN Global Mask Extension Register (GMSKX)
+   * The GMSKX register enables global masking for incoming identifier bits,
+   * allowing the software to globally mask the incoming extended identifier bit XRTR
+   **/
+  VOR_CAN0->GMSKX = 0;
+  /** CAN Global Mask Base Register (GMSKB)
+   * The GMSKB register enables global masking for incoming identifier bits,
+   * allowing the software to globally mask the identifier bits RTR and IDE.
+   **/
+  VOR_CAN0->GMSKB = 0x0010;  // ENABLE remote transmission request for standard frame
   
-  // Configure CAN0 at 250 kbps (assuming 80 MHz system clock)
-  canConfig.clkdiv = 4;           // Divide by 4 -> 20 MHz
-  canConfig.tseg1 = 13;           // Time segment 1
-  canConfig.tseg2 = 2;            // Time segment 2
-  canConfig.sjw = 1;              // Synchronization jump width
-  canConfig.loopback = false;
-  canConfig.listenonly = false;
-  canConfig.bufflock = false;
+  /* Set up buffer-specific mask for buffer 14 */
+  // Buffer 14 is configured as a catch-all for standard ID messages
+  // Software: IRQ handler filters out IDs 0x200-0x205 (reserved for CAN1)
+  VOR_CAN0->BMSKX = 0;            // unused for standard IDs
+  VOR_CAN0->BMSKB = (0x7FF << 5)|(0x1 << 4) ;   // Mask = 0x7FF, accepts any ID (Buffer_ID = 0x0) + RTR bit
   
-  HAL_CanBus_Init(VOR_CAN0, &canConfig);
+  // CAN Acceptance Rule: Message_Accepted = (Incoming_ID & MASK) == (Buffer_ID & MASK)
+  // Example: (0x123 & 0x0) == (0x0 & 0x0) → TRUE, message accepted
+  //          (0x456 & 0x0) == (0x0 & 0x0) → TRUE, message accepted
   
+  /* Clear all CAN message buffers */
+  HAL_Can_ClearAllBufferStatus(VOR_CAN0);
+
   // Configure RX buffer for command messages (ID 0x200)
-  HAL_CanBus_ConfigBuffer11(VOR_CAN0, 0, CAN_BL_CMD_ID, 
-                            hal_can_dir_rx, hal_can_bufmode_normal);
+  HAL_Can_ConfigCMB_Rx(CAN_BL_CMD_ID, en_can_cmb_msgtype_STD11, can0_cmb_rx_cmd);
   
   // Configure RX buffer for data messages (ID 0x201)
-  HAL_CanBus_ConfigBuffer11(VOR_CAN0, 1, CAN_BL_DATA_ID, 
-                            hal_can_dir_rx, hal_can_bufmode_normal);
+  HAL_Can_ConfigCMB_Rx(CAN_BL_DATA_ID, en_can_cmb_msgtype_STD11, can0_cmb_rx_data);
   
   // Configure TX buffer for response messages (ID 0x202)
-  HAL_CanBus_ConfigBuffer11(VOR_CAN0, 2, CAN_BL_RESP_ID, 
-                            hal_can_dir_tx, hal_can_bufmode_normal);
-  
-  // Enable CAN0 interrupts
-  NVIC_EnableIRQ(CAN0_IRQn);
-  NVIC_SetPriority(CAN0_IRQn, 2);
+  // Note: For TX buffers, the ID is set when sending the message, so we can configure with a default ID
 }
 
 /*******************************************************************************
@@ -101,8 +190,8 @@ void CAN_BootloaderInit(void)
 bool CAN_IsRxMsgAvailable(void)
 {
   // Check if either RX buffer has a message
-  return ((can0_cmb_rx_cmd->CNSTAT & CAN_CMB_CNSTAT_ST_Msk) == 0x3) ||
-         ((can0_cmb_rx_data->CNSTAT & CAN_CMB_CNSTAT_ST_Msk) == 0x3);
+  return ((can0_cmb_rx_cmd->CNSTAT & CAN_CNSTAT_CMB0_ST_Msk) == 0x3) ||
+         ((can0_cmb_rx_data->CNSTAT & CAN_CNSTAT_CMB0_ST_Msk) == 0x3);
 }
 
 /*******************************************************************************
@@ -118,33 +207,21 @@ bool CAN_IsRxMsgAvailable(void)
  ******************************************************************************/
 bool CAN_ReceiveMessage(uint32_t *pId, uint8_t *pData, uint8_t *pLen)
 {
-  volatile can_cmb_t *cmb = NULL;
-  
-  // Check command buffer first
-  if ((can0_cmb_rx_cmd->CNSTAT & CAN_CMB_CNSTAT_ST_Msk) == 0x3) {
-    cmb = can0_cmb_rx_cmd;
-    *pId = CAN_BL_CMD_ID;
+  can_pkt_t rxPkt;
+  uint8_t *data8;
+  // Check if message is available in either RX buffers cmd or data 
+  if (HAL_Can_getCanPkt(can0_cmb_rx_cmd, &rxPkt) != 0) {
+    if (HAL_Can_getCanPkt(can0_cmb_rx_data, &rxPkt) != 0) {
+      return false; // No message available
+    }
   }
-  // Check data buffer
-  else if ((can0_cmb_rx_data->CNSTAT & CAN_CMB_CNSTAT_ST_Msk) == 0x3) {
-    cmb = can0_cmb_rx_data;
-    *pId = CAN_BL_DATA_ID;
-  }
-  else {
-    return false;
-  }
-  
-  // Get message length
-  *pLen = (cmb->CNSTAT & CAN_CMB_CNSTAT_DLC_Msk) >> CAN_CMB_CNSTAT_DLC_Pos;
-  
-  // Read data bytes
+  // Message received, extract ID, data, and length  
+  *pId = rxPkt.id;
+  *pLen = rxPkt.dataLengthBytes;
+  data8 = (uint8_t *)rxPkt.data16;
   for (uint8_t i = 0; i < *pLen && i < 8; i++) {
-    pData[i] = cmb->DATA[i];
+    pData[i] = data8[i];
   }
-  
-  // Clear the buffer to receive next message
-  cmb->CNSTAT &= ~CAN_CMB_CNSTAT_ST_Msk;
-  
   return true;
 }
 
@@ -161,27 +238,16 @@ bool CAN_ReceiveMessage(uint32_t *pId, uint8_t *pData, uint8_t *pLen)
  ******************************************************************************/
 bool CAN_SendMessage(uint32_t id, uint8_t *pData, uint8_t len)
 {
-  // Check if TX buffer is available
-  if ((can0_cmb_tx->CNSTAT & CAN_CMB_CNSTAT_ST_Msk) == 0x3) {
-    // Buffer is full, can't send
-    return false;
-  }
-  
-  // Limit length to 8 bytes
-  if (len > 8) {
-    len = 8;
-  }
-  
-  // Write data to buffer
-  for (uint8_t i = 0; i < len; i++) {
-    can0_cmb_tx->DATA[i] = pData[i];
-  }
-  
-  // Set message length and trigger transmission
-  can0_cmb_tx->CNSTAT = (can0_cmb_tx->CNSTAT & ~CAN_CMB_CNSTAT_DLC_Msk) | 
-                        (len << CAN_CMB_CNSTAT_DLC_Pos);
-  can0_cmb_tx->CNSTAT |= CAN_CMB_CNSTAT_ST_Msk; // Set to TX ready (0x3)
-  
+  can_pkt_t respPkt;
+  respPkt.id = id;
+  respPkt.dataLengthBytes = len;
+  respPkt.txPriorityCode = 0;   /* Highest priority */
+  respPkt.msgType = en_can_cmb_msgtype_STD11;
+  uint8_t *data8 = (uint8_t *)respPkt.data16;
+  for (uint8_t i = 0; i < len && i < 8; i++) {
+    data8[i] = pData[i];
+  } 
+  HAL_Can_sendCanPkt(can0_cmb_tx, &respPkt);
   return true;
 }
 
@@ -192,9 +258,6 @@ bool CAN_SendMessage(uint32_t id, uint8_t *pData, uint8_t len)
  ******************************************************************************/
 void CAN0_IRQHandler(void)
 {
-  // Clear interrupt flags
-  uint32_t status = VOR_CAN0->CANGIF;
-  VOR_CAN0->CANGIF = status;
 }
 
 /*****************************************************************************/
